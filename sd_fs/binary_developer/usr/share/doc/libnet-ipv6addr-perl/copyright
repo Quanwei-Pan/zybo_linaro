@@ -1,0 +1,30 @@
+This package was debianized by Bart Martens <bartm@knars.be> on
+Sat, 11 Nov 2006 19:06:43 +0100.
+
+It was downloaded from:
+   http://search.cpan.org/~tmonroe/Net-IPv6Addr/
+
+Upstream Author: Tony Monroe http://www.nog.net/~tony/
+
+Copyright:
+
+   Copyright (c) 2001-2002 Tony Monroe.  All rights reserved.
+
+License:
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of either:
+
+   a) the GNU General Public License as published by the Free Software
+      Foundation; either version 1, or (at your option) any later
+      version, or
+
+   b) the "Artistic License" which comes with Perl.
+
+   On Debian GNU/Linux systems, the complete text of the GNU General
+   Public License can be found in `/usr/share/common-licenses/GPL' and
+   the Artistic Licence in `/usr/share/common-licenses/Artistic'.
+
+The Debian packaging is 
+Copyright (C) 2006, Bart Martens <bartm@knars.be>
+and is licensed under the GPL, see `/usr/share/common-licenses/GPL'.

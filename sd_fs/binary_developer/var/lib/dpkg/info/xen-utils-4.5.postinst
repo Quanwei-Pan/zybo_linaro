@@ -1,0 +1,30 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    configure)
+        if [ -x "/etc/init.d/xen" ]; then
+	    invoke-rc.d xen start || exit $?
+        fi
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+    ;;
+esac
+
+
+# Automatically added by dh_python2:
+if which pycompile >/dev/null 2>&1; then
+	pycompile -p xen-utils-4.5 /usr/lib/xen-4.5 -V 2.7
+fi
+
+# End automatically added section
+
+
+exit 0

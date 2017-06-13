@@ -1,0 +1,346 @@
+#!/usr/bin/perl -w
+
+=encoding utf8
+
+=head1 NAME
+
+xen-create-nfs - Create a Xen configuration file for an NFS-root guest.
+
+=head1 SYNOPSIS
+
+  xen-create-nfs [options]
+
+  Help Options:
+   --help     Show help information.
+   --manual   Read the manual for this script.
+   --version  Show the version information and exit.
+   --verbose  Show diagnostic output.
+
+  Networking Options:
+   --broadcast  The broadcast address to use when configured with a static IP.
+   --dhcp       Configure the guest to use DHCP for IP allocation.
+   --gateway    The gateway address to use when configured with a static IP.
+   --hostname   The hostname to configure for the guest.
+   --ip         The IP address to use when configured with a static IP.
+   --netmask    The netmask to use when configured with a static IP.
+   --nameserver The nameserver to use when configured with a static IP.
+
+  General options:
+   --admins     Specify which users should be setup as xen-shell admins.
+   --force      Force the overwriting of an existing configuration file.
+   --initrd     Specify the initial ramdisk for the guest.
+   --kernel     Specify the kernel to use for the guest.
+   --memory     Specify the memory to allocate for this guest.
+   --mac        Specify the MAC address to use for the guest.
+   --template   Specify an alternative template file to use.
+
+  NFS options:
+   --nfs_server Specify the NFS server to mount the root partition from.
+   --nfs_root   Specify the path, upon the NFS server, to mount.
+
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+Show help information.
+
+=item B<--hostname>
+Specify the hostname to delete.
+
+=item B<--manual>
+Read the manual for this script.
+
+=item B<--version>
+Show the version number and exit.
+
+=back
+
+
+=head1 DESCRIPTION
+
+  xen-create-nfs is a simple script which allows you to easily create
+ a single configuration file for a Xen guest which will mount its remote
+ filesystem over an NFS root.
+
+  It doesn't create any images to use for local storage, and it doesn't
+ support more than the minimal number of options to completement the
+ existing xen-create-image script, however it is hopefully useful.
+
+
+=head1 REFERENCE
+
+  For more details on what you'll need to support NFS-root Xen guests
+ the following article, written by the author, might be useful:
+
+    http://www.debian-administration.org/articles/505
+
+
+=head1 AUTHORS
+
+ Steve Kemp, http://www.steve.org.uk/
+ Stéphane Jourdois
+
+
+=head1 LICENSE
+
+Copyright (c) 2005-2009 by Steve Kemp, (c) 2010 by The Xen-Tools
+Development Team. All rights reserved.
+
+This module is free software;
+you can redistribute it and/or modify it under
+the same terms as Perl itself.
+The LICENSE file contains the full text of the license.
+
+=cut
+
+
+use strict;
+use English;
+use Env;
+use Getopt::Long;
+use Pod::Usage;
+use Text::Template;
+use Xen::Tools::Common;
+
+
+#
+#  Configuration values read from the command line.
+#
+#  We do not need to read any configuration file.
+#
+my %CONFIG;
+
+#
+#  Default options
+#
+$CONFIG{ 'template' } = '/etc/xen-tools/xm-nfs.tmpl';
+
+
+#
+# Release number.
+#
+my $RELEASE = '4.5';
+
+
+# store version number away.
+$CONFIG{ 'xen_tools_version' } = $RELEASE;
+
+
+#
+#  Read the global configuration file.
+#
+readConfigurationFile("/etc/xen-tools/xen-tools.conf", \%CONFIG);
+
+
+#
+#  Parse the command line arguments.
+#
+parseCommandLineArguments();
+
+
+#
+#  Validate our arguments.
+#
+testArguments();
+
+
+#
+#  Create the image.
+#
+if ( -e "/etc/xen/$CONFIG{'hostname'}.cfg" )
+{
+    die "Configuration file for $CONFIG{'hostname'} already exists"
+      unless ( $CONFIG{ 'force' } );
+}
+
+#
+#  If we've been given any administrators then set them up.
+#
+if ( $CONFIG{ 'admins' } )
+{
+    setupAdminUsers(\%CONFIG);
+}
+
+#
+#  Now create the NFS configuration file.
+#
+createNewConfigurationFile();
+
+
+
+#
+#  All done.
+#
+exit;
+
+
+=begin doc
+
+  Parse the command line arguments this script was given.
+
+=end doc
+
+=cut
+
+sub parseCommandLineArguments
+{
+    my $HELP    = 0;
+    my $MANUAL  = 0;
+    my $VERSION = 0;
+
+
+    #
+    #  Parse options.
+    #
+    GetOptions(
+
+        # Networking options
+        "dhcp",         \$CONFIG{ 'dhcp' },
+        "gateway=s",    \$CONFIG{ 'gateway' },
+        "broadcast=s",  \$CONFIG{ 'broadcast' },
+        "ip=s",         \$CONFIG{ 'ip' },
+        "netmask=s",    \$CONFIG{ 'netmask' },
+        "nameserver=s", \$CONFIG{ 'nameserver' },
+        "hostname=s",   \$CONFIG{ 'hostname' },
+        "memory=s",     \$CONFIG{ 'memory' },
+        "mac=s",        \$CONFIG{ 'mac' },
+
+        # NFS options.
+        "nfs_server=s", \$CONFIG{ 'nfs_server' },
+        "nfs_root=s",   \$CONFIG{ 'nfs_root' },
+
+        # Misc. options
+        "admins=s",   \$CONFIG{ 'admins' },
+        "kernel=s",   \$CONFIG{ 'kernel' },
+        "initrd=s",   \$CONFIG{ 'initrd' },
+        "force",      \$CONFIG{ 'force' },
+        "template=s", \$CONFIG{ 'template' },
+
+        # Help options
+        "help",    \$HELP,
+        "manual",  \$MANUAL,
+        "verbose", \$CONFIG{ 'verbose' },
+        "version", \$VERSION
+
+    );
+
+    pod2usage(1) if $HELP;
+    pod2usage( -verbose => 2 ) if $MANUAL;
+
+
+    if ($VERSION)
+    {
+        logprint("xen-create-nfs release $RELEASE\n");
+        exit;
+    }
+}
+
+
+
+=begin doc
+
+  Test that our arguments make sense.
+
+=end doc
+
+=cut
+
+sub testArguments
+{
+
+    #
+    #  Hostname is mandatory
+    #
+    die "No hostname" unless ( $CONFIG{ 'hostname' } );
+
+    my @network = qw/ ip gateway netmask /;
+
+    #
+    #  If DHCP then all the other options aren't needed
+    #
+    if ( $CONFIG{ 'dhcp' } )
+    {
+        foreach my $f (@network)
+        {
+            delete( $CONFIG{ $f } );
+        }
+    }
+    else
+    {
+        foreach my $f (@network)
+        {
+            die "Missing --$f" unless ( $CONFIG{ $f } );
+        }
+    }
+
+    #
+    #  We need an NFS server + root
+    #
+    die "Missing NFS server." unless ( $CONFIG{ 'nfs_server' } );
+    die "Missing NFS root."   unless ( $CONFIG{ 'nfs_root' } );
+
+
+    # Shorthack to fix http://bugs.debian.org/648814 -- xen-create-nfs
+    # should better use xt-create-xen-config instead. Guess from where
+    # this code is borrowed for now...
+
+    if ( exists($CONFIG{ 'memory' }) and
+         defined($CONFIG{ 'memory' }) ) {
+
+        #
+        #  The memory size:  Convert Gb -> Mb.
+        #
+        if ( $CONFIG{ 'memory' } =~ /^(\d+)Gb.*$/i )
+        {
+            $CONFIG{ 'memory' } = $1 * 1024;
+        }
+
+        #
+        #  Remove any trailing Mb.
+        #
+        if ( $CONFIG{ 'memory' } =~ /^(\d+)Mb.*$/i )
+        {
+            $CONFIG{ 'memory' } = $1;
+        }
+
+    }
+    # All OK.
+}
+
+
+
+=begin doc
+
+  Create the Xen configuration file for our new Xen guest.
+
+=end doc
+
+=cut
+
+sub createNewConfigurationFile
+{
+    die "Template file missing: $CONFIG{'template'}"
+      unless ( -e $CONFIG{ 'template' } );
+
+    #
+    #  Load the template.
+    #
+    my $template = new Text::Template( TYPE   => 'FILE',
+                                       SOURCE => $CONFIG{ 'template' } );
+
+    my $result = $template->fill_in( HASH => \%CONFIG );
+
+    #
+    #  The file we'll write to.
+    #
+    my $file = "/etc/xen/$CONFIG{'hostname'}.cfg";
+
+    #
+    #  Output the configuration file.
+    #
+    open( FILE, ">", $file ) or die "Failed to write to $file - $!";
+    print FILE $result;
+    close(FILE);
+}

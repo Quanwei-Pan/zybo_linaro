@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    remove|upgrade)
+        if [ -x "/etc/init.d/xen" ]; then
+            invoke-rc.d xen stop || exit $?
+        fi
+    ;;
+
+    deconfigure|failed-upgrade)
+    ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+
+# Automatically added by dh_python2:
+if which pyclean >/dev/null 2>&1; then
+	pyclean -p xen-utils-4.5 
+else
+	dpkg -L xen-utils-4.5 | grep \.py$ | while read file
+	do
+		rm -f "${file}"[co] >/dev/null
+  	done
+fi
+
+# End automatically added section
+
+
+exit 0

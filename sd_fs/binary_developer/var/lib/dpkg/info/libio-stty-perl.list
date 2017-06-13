@@ -1,0 +1,15 @@
+/.
+/usr
+/usr/share
+/usr/share/man
+/usr/share/man/man3
+/usr/share/man/man3/IO::Stty.3pm.gz
+/usr/share/doc
+/usr/share/doc/libio-stty-perl
+/usr/share/doc/libio-stty-perl/README.gz
+/usr/share/doc/libio-stty-perl/changelog.Debian.gz
+/usr/share/doc/libio-stty-perl/copyright
+/usr/share/perl5
+/usr/share/perl5/IO
+/usr/share/perl5/IO/Stty.pm
+/usr/share/perl5/IO/stty.pl

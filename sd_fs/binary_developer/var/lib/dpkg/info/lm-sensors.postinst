@@ -1,0 +1,64 @@
+#!/bin/sh
+# postinst script for sensord
+#
+# see: dh_installdeb(1)
+set -e
+
+case "$1" in
+    configure)
+        # Remove shutdown and reboot links; this init script does not need them.
+        if dpkg --compare-versions "$2" lt "1:3.0.2-2"; then
+	    rm -f /etc/rc0.d/K[0-9][0-9]sensord /etc/rc6.d/K[0-9][0-9]sensord
+        fi
+    ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+    ;;
+esac
+
+# Automatically added by dh_systemd_enable
+# This will only remove masks created by d-s-h on package removal.
+deb-systemd-helper unmask lm-sensors.service >/dev/null || true
+
+# was-enabled defaults to true, so new installations run enable.
+if deb-systemd-helper --quiet was-enabled lm-sensors.service; then
+	# Enables the unit on first installation, creates new
+	# symlinks on upgrades if the unit file has changed.
+	deb-systemd-helper enable lm-sensors.service >/dev/null || true
+else
+	# Update the statefile to add new symlinks (if any), which need to be
+	# cleaned up on purge. Also remove old symlinks.
+	deb-systemd-helper update-state lm-sensors.service >/dev/null || true
+fi
+# End automatically added section
+# Automatically added by dh_systemd_start
+if [ -d /run/systemd/system ]; then
+	systemctl --system daemon-reload >/dev/null || true
+	deb-systemd-invoke start lm-sensors.service >/dev/null || true
+fi
+# End automatically added section
+# Automatically added by dh_installinit
+if [ -x "/etc/init.d/lm-sensors" ]; then
+	update-rc.d lm-sensors defaults >/dev/null
+fi
+# End automatically added section
+# Automatically added by dh_installdeb
+dpkg-maintscript-helper rm_conffile /etc/blacklist.d/lm-sensors 1:2.9.0-14~ -- "$@"
+# End automatically added section
+# Automatically added by dh_installdeb
+dpkg-maintscript-helper rm_conffile /etc/modutils/i2c 1:3.0.1-4~ -- "$@"
+# End automatically added section
+# Automatically added by dh_installdeb
+dpkg-maintscript-helper rm_conffile /etc/modprobe.d/i2c 1:3.1.0-1~ -- "$@"
+# End automatically added section
+# Automatically added by dh_installdeb
+dpkg-maintscript-helper mv_conffile /etc/modprobe.d/lm-sensors /etc/modprobe.d/lm-sensors.conf 1:3.1.0-1~ -- "$@"
+# End automatically added section
+# Automatically added by dh_installdeb
+dpkg-maintscript-helper rm_conffile /etc/init.d/fancontrol 1:3.1.1-5~ -- "$@"
+# End automatically added section
+

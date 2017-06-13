@@ -1,0 +1,273 @@
+#!/usr/bin/perl -w
+
+=encoding utf8
+
+=head1 NAME
+
+xen-list-images - List all the created and configured Xen images.
+
+=head1 SYNOPSIS
+
+  xen-list-image [options]
+
+  Filename Options:
+   --extension  Specify the file extension to use. An empty extension is equal
+                to any extension.
+
+  Help Options:
+   --help     Show this scripts help information.
+   --manual   Read this scripts manual.
+   --version  Show the version number and exit.
+
+  Testing options:
+   --test     Specify an alternate Xen configuration directory.
+
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+Show the scripts help information.
+
+=item B<--manual>
+Read the manual.
+
+=item B<--test>
+This flag causes the script to load the Xen configuration files from a different directory than the default of B</etc/xen>.
+
+=item B<--version>
+Show the version number and exit.
+
+=back
+
+
+=head1 DESCRIPTION
+
+  xen-list-images is a simple script which will display all the
+ Xen images which have been created.
+
+  This works by iterating over all files matching the pattern
+ /etc/xen/*.cfg which is what the xen-create-image script would
+ create.
+
+  For each instance which has been created we'll display the name,
+ and then either the IP address configured, or "DHCP" to denote
+ a dynamic host.
+
+
+=head1 TODO
+
+  It should be possible to determine the disk(s) used by the images,
+ and then display their sizes.
+
+
+=head1 AUTHORS
+
+ Steve Kemp, http://www.steve.org.uk/
+ Stéphane Jourdois
+
+
+=head1 LICENSE
+
+Copyright (c) 2005-2009 by Steve Kemp, (c) 2010-2013 by The Xen-Tools
+Development Team. All rights reserved.
+
+This module is free software;
+you can redistribute it and/or modify it under
+the same terms as Perl itself.
+The LICENSE file contains the full text of the license.
+
+=cut
+
+
+use strict;
+use English;
+use File::Temp qw/ tempdir /;
+use Getopt::Long;
+use Pod::Usage;
+use Xen::Tools::Common;
+
+
+#
+#  Configuration options, initially read from the configuration files
+# but may be overridden by the command line.
+#
+#  Command line flags *always* take precedence over the configuration file.
+#
+my %CONFIG;
+
+#
+#  Default values
+#
+$CONFIG{ 'prefix' } = "/etc/xen";
+$CONFIG{ 'extension' } = '.cfg';
+
+#
+# Release number.
+#
+my $RELEASE = '4.5';
+
+
+
+#
+#  Read the global configuration file if it exists.
+#
+readConfigurationFile("/etc/xen-tools/xen-tools.conf", \%CONFIG);
+
+
+#
+#  Parse command line arguments, these override the values from the
+# configuration file.
+#
+parseCommandLineArguments();
+
+
+#
+#  Read all the xen configuration files.
+#
+my @instances = findXenInstances();
+
+
+#
+#  Now process each instance.
+#
+my $count = 0;
+foreach my $instance (@instances)
+{
+    if ($count) {print "\n";}
+
+    displayInstance($instance);
+    $count += 1;
+}
+
+
+#
+#  All done.
+#
+exit;
+
+
+
+=begin doc
+
+  Parse the arguments specified upon the command line.
+
+=end doc
+
+=cut
+
+sub parseCommandLineArguments
+{
+    my $HELP    = 0;
+    my $MANUAL  = 0;
+    my $VERSION = 0;
+
+    #  Parse options.
+    #
+    GetOptions( "test=s", \$CONFIG{ 'prefix' },
+                "extension:s", \$CONFIG{ 'extension' },
+                "help", \$HELP,
+                "manual", \$MANUAL,
+                "version", \$VERSION );
+
+    pod2usage(1) if $HELP;
+    pod2usage( -verbose => 2 ) if $MANUAL;
+
+
+    if ($VERSION)
+    {
+        print "xen-list-images release $RELEASE\n";
+        exit;
+    }
+}
+
+
+
+=begin doc
+
+  Return an array containing the names of each xen configuration
+ file we found.
+
+=end doc
+
+=cut
+
+sub findXenInstances
+{
+    my @found;
+
+    foreach my $file ( sort( glob( $CONFIG{ 'prefix' } . "/*" . $CONFIG{ 'extension' } ) ) )
+    {
+        push @found, $file if (
+            -f $file and
+            $file !~ m(~$|\.dpkg-[a-z]+$|\.sxp$|/xl\.conf$)
+            );
+    }
+
+    return (@found);
+}
+
+
+
+=begin doc
+
+  Show details about the the Xen instance contained in the given
+ configuration file.
+
+=end doc
+
+=cut
+
+sub displayInstance
+{
+    my ($file) = (@_);
+
+    #
+    #  Read each line.
+    #
+    open( FILY, "<", $file );
+    my @LINES = <FILY>;
+    close(FILY);
+
+    #
+    #  Is it dynamic?
+    #
+    my $dhcp = 0;
+    my $ip   = '';
+    my $mac  = '';
+    my $name = '';
+    my $mem  = 0;
+
+    foreach my $line (@LINES)
+    {
+        if ( $line =~ /^\s*dhcp\s*=\s*"dhcp\"/i )
+        {
+            $dhcp = 1;
+        }
+        if ( $line =~ /^\s*name\s*=\s*["']([^'"]+)['"]/i )
+        {
+            $name = $1;
+        }
+        if ( $line =~ /^\s*memory[^0-9]*([0-9]+)/i )
+        {
+            $mem = $1;
+        }
+        if ( $line =~ /ip=([0-9\.]+)/ )
+        {
+            $ip = $1;
+        }
+        if ( $line =~ /mac=['\"]([^'\"]+)['\"]/ )
+        {
+            $mac = " [MAC: $1]";
+        }
+    }
+
+    print "Name: $name\n";
+    print "Memory: $mem MB\n";
+    print "IP: " . $ip . $mac . "\n" if length($ip);
+    print "DHCP" . $mac . "\n" if $dhcp;
+    print "Config: $file\n";
+}
+
+

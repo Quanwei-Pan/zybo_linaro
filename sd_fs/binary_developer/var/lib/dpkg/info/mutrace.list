@@ -1,0 +1,15 @@
+/.
+/usr
+/usr/lib
+/usr/lib/mutrace
+/usr/lib/mutrace/libmutrace-backtrace-symbols.so
+/usr/lib/mutrace/libmutrace.so
+/usr/lib/mutrace/libmatrace.so
+/usr/bin
+/usr/bin/mutrace
+/usr/bin/matrace
+/usr/share
+/usr/share/doc
+/usr/share/doc/mutrace
+/usr/share/doc/mutrace/changelog.Debian.gz
+/usr/share/doc/mutrace/copyright

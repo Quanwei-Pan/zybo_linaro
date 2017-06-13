@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+# Automatically added by dh_installinit
+if [ -x "/etc/init.d/gator-daemon" ]; then
+	update-rc.d gator-daemon defaults >/dev/null
+fi
+if [ -x "/etc/init.d/gator-daemon" ] || [ -e "/etc/init/gator-daemon.conf" ]; then
+	invoke-rc.d gator-daemon start || exit $?
+fi
+# End automatically added section

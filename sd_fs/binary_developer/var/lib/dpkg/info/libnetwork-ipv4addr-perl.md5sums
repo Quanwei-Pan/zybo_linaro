@@ -1,0 +1,8 @@
+faeca1612d63b239c981d73ff3a0f57c  usr/bin/ipv4calc
+3052819793f06831e38820f75da13d80  usr/share/doc/libnetwork-ipv4addr-perl/NEWS.gz
+5b04e90a77776af84c01ebdf24a3059b  usr/share/doc/libnetwork-ipv4addr-perl/changelog.Debian.gz
+20db388d68c849a7a2579185d80e8d80  usr/share/doc/libnetwork-ipv4addr-perl/copyright
+866333df28347096cc958dde393669cc  usr/share/man/man1/ipv4calc.1p.gz
+ce234239bff57ea7b795a20a3abebc7b  usr/share/man/man3/Net::IPv4Addr.3pm.gz
+d15ef200e282f186612cbe875e793e32  usr/share/perl5/Net/IPv4Addr.pm
+0cfba14cea5c1dc8a0cbe102a5d737c0  usr/share/perl5/auto/Net/IPv4Addr/autosplit.ix

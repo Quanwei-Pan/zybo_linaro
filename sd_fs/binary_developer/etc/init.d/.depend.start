@@ -1,0 +1,13 @@
+TARGETS = rsyslog killprocs xen single ssh loadcpufreq rsync cron dbus xendomains cpufrequtils ondemand rc.local
+INTERACTIVE =
+xen: rsyslog
+single: killprocs
+ssh: rsyslog
+loadcpufreq: rsyslog
+rsync: rsyslog
+cron: rsyslog
+dbus: rsyslog
+xendomains: rsyslog xen
+cpufrequtils: loadcpufreq
+ondemand: xendomains rsyslog xen ssh cpufrequtils loadcpufreq rsync cron dbus
+rc.local: xendomains rsyslog xen ssh cpufrequtils loadcpufreq rsync cron dbus

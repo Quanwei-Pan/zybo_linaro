@@ -1,0 +1,15 @@
+/.
+/usr
+/usr/share
+/usr/share/man
+/usr/share/man/man3
+/usr/share/man/man3/Net::Netmask.3pm.gz
+/usr/share/doc
+/usr/share/doc/libnet-netmask-perl
+/usr/share/doc/libnet-netmask-perl/README.gz
+/usr/share/doc/libnet-netmask-perl/changelog.Debian.gz
+/usr/share/doc/libnet-netmask-perl/copyright
+/usr/share/perl5
+/usr/share/perl5/Net
+/usr/share/perl5/Net/Netmask.pm
+/usr/share/perl5/Net/Netmask.pod

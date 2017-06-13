@@ -1,0 +1,12 @@
+09b157acd1bde2774bf6aeec8b676d12  usr/share/doc/libdata-validate-uri-perl/changelog.Debian.gz
+ab1507c4d384e4c99e44033c87feb1ef  usr/share/doc/libdata-validate-uri-perl/copyright
+35c1d6380193379e92d6390f55a1b123  usr/share/man/man3/Data::Validate::URI.3pm.gz
+8928470d752467c58c6c4da1fe13024c  usr/share/perl5/Data/Validate/URI.pm
+f02db3ee019778dbca14db6fd6d63fdd  usr/share/perl5/auto/Data/Validate/URI/_split_uri.al
+d3043d58d5cae0e860a3dd6a9e28bd8d  usr/share/perl5/auto/Data/Validate/URI/autosplit.ix
+8aab9fa31e160c7c0486e73731605bba  usr/share/perl5/auto/Data/Validate/URI/is_http_uri.al
+92dca4e72566b4ed25bff343c7c98540  usr/share/perl5/auto/Data/Validate/URI/is_https_uri.al
+864ea7a818dbf7e9afe4f2188fef730c  usr/share/perl5/auto/Data/Validate/URI/is_tel_uri.al
+33d72be83e88416a4b66ea28670b6973  usr/share/perl5/auto/Data/Validate/URI/is_uri.al
+77f51c816860708647fd55aaa1da5f7b  usr/share/perl5/auto/Data/Validate/URI/is_web_uri.al
+9634c107b1485712127569953a270d80  usr/share/perl5/auto/Data/Validate/URI/new.al

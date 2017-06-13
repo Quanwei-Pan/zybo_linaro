@@ -1,0 +1,131 @@
+#!/bin/sh
+#
+#  If the pygrub flag is set, this script will install the necessary
+# packages to boot the VM from the dom0 via pygrub. This script installs
+# the kernel and modules and generates a grub menu.lst in the newly
+# created maschine.
+#
+# Dmitry Nedospasov
+# --
+# http://nedos.net
+
+prefix=$1
+
+#
+#  Source our common functions
+#
+
+if [ -e /usr/share/xen-tools/common.sh ]; then
+    . /usr/share/xen-tools/common.sh
+else
+    . ./hooks/common.sh
+fi
+
+if [ "${pygrub}" ]; then
+#
+# Log our start
+#
+
+logMessage Script $0 starting
+
+#
+# Resolve the correct architecture
+#
+
+if [ "${arch}" = "i386" ]; then
+    XEN_ARCH="686"
+elif [ "${arch}" = "amd64" ]; then
+    XEN_ARCH="amd64"
+elif [ -z "${arch}" ]; then
+    UNAME_ARCH=`uname -m`
+    if [ "${UNAME_ARCH}" = "i686" ]; then
+        XEN_ARCH="686"
+    elif [ "${UNAME_ARCH}" = "x86_64" ]; then
+        XEN_ARCH="amd64"
+    else
+        logMessage Unknown kernel architecture ${UNAME_ARCH}.
+        logMessage Please report this as bug to xen-tools-dev@xen-tools.org.
+        logMessage Script $0 failed
+        exit 1
+    fi
+else
+    logMessage Unknown kernel architecture ${arch}
+    logMessage Script $0 failed
+    exit 1
+fi
+
+#
+# Attempt to install a xen kernel, if that fails, then install a normal one
+#
+
+KERNEL_XEN_PKG="linux-image-xen-$XEN_ARCH"
+KERNEL_PKG="linux-image-$XEN_ARCH"
+
+# Add "-pae" suffix for Debian releases after Squeeze. See
+# https://bugs.debian.org/742778 for details.
+if [ "${dist}" != "sarge"   -a \
+     "${dist}" != "etch"    -a \
+     "${dist}" != "lenny"   -a \
+     "${dist}" != "squeeze" -a \
+     "$XEN_ARCH" = "686" ]; then
+    KERNEL_XEN_PKG="$KERNEL_XEN_PKG-pae"
+    KERNEL_PKG="$KERNEL_PKG-pae"
+fi
+
+logMessage Attempting to install the $KERNEL_XEN_PKG kernel image
+if chroot ${prefix} /usr/bin/apt-cache show $KERNEL_XEN_PKG > /dev/null 2>&1; then
+    logMessage Package $KERNEL_XEN_PKG is available - installing
+    installDebianPackage ${prefix} initramfs-tools
+    installDebianPackage ${prefix} $KERNEL_XEN_PKG
+
+else
+    logMessage Package $KERNEL_XEN_PKG is not available
+    logMessage Attempting to install the $KERNEL_PKG kernel image
+    logMessage WARNING: This kernel may not have pvops
+    if chroot ${prefix} /usr/bin/apt-cache show $KERNEL_PKG > /dev/null 2>&1; then
+        logMessage Package $KERNEL_PKG is available - installing
+        installDebianPackage ${prefix} initramfs-tools
+        installDebianPackage ${prefix} $KERNEL_PKG
+    else
+        logMessage Package $KERNEL_PKG is not available
+        logMessage pygrub set, but kernel could not be installed
+        logMessage Script $0 failed
+        exit 1
+    fi
+fi
+
+# Check for "ls -v" support
+V=''; if ls -1 ${prefix}/boot/vmlinuz* > /dev/null 2>&1; then V=-v; fi
+
+DOMU_KERNEL=$(basename $(ls -1 ${V} ${prefix}/boot/vmlinuz* | tail -n 1))
+KERNEL_REV=$(echo $DOMU_KERNEL | sed "s/vmlinuz-//g")
+DOMU_RAMDISK="initrd.img-$KERNEL_REV"
+DOMU_ISSUE=$(sed -re "s/ *\\\.*//g" -e1q < ${prefix}/etc/issue)
+
+#
+# Generate initrd if it does not exist
+#
+
+if [ -f ${prefix}/boot/$DOMU_RAMDISK ]; then
+    logMessage initrd exists, skipping generation
+else
+    logMessage initrd missing, generating
+    chroot ${prefix} update-initramfs -c -k $KERNEL_REV
+fi
+
+#
+# Generate a menu.lst for pygrub
+#
+
+generateDebianGrubMenuLst "${prefix}" "$DOMU_ISSUE" "$DOMU_KERNEL" "$DOMU_RAMDISK"
+
+
+else
+    logMessage pygrub not set, skipping kernel install
+fi # if pygrub
+
+#
+#  Log our finish
+#
+
+logMessage Script $0 finished

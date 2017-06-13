@@ -1,0 +1,489 @@
+#!/usr/bin/perl -w
+
+=encoding utf8
+
+=head1 NAME
+
+xen-delete-image - Delete previously created Xen instances.
+
+=head1 SYNOPSIS
+
+  xen-delete-image [options] [--hostname=]imageName1 [--hostname=]imageName2
+
+  Filename Options:
+   --extension  Specify the file extension to use. An empty extension is equal
+                to any extension.
+
+  Help Options:
+   --help     Show help information.
+   --manual   Read the manual for this script.
+   --version  Show the version information and exit.
+   --verbose  Show diagnostic output.
+
+  General options:
+   --dir      Specify the output directory where images were previously saved.
+   --evms     Specify the EVMS container to use.
+   --lvm      Specify the LVM volume to use.
+
+  Specifying hosts:
+   --hostname Specify the image name to delete.
+
+  Testing options:
+   --test      Don't complain if we're not invoked by root.
+
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--dir>
+Specify the output directory where images were previously saved.
+
+=item B<--evms>
+Specify the EVMS container where images were previously saved.
+
+=item B<--help>
+Show help information.
+
+=item B<--hostname>
+Specify the hostname to delete.
+
+=item B<--lvm>
+Specify the LVM volume group where images were previously saved.
+
+=item B<--manual>
+Read the manual for this script.
+
+=item B<--test>
+Do not complain, or exit, if the script is not executed by the root
+user. (Only works in conjunction with --dir.)
+
+=item B<--version>
+Show the version number and exit.
+
+=back
+
+
+=head1 DESCRIPTION
+
+  xen-delete-image is a simple script which allows you to delete
+ Xen instances which have previously been created by xen-create-image.
+
+  You must be root to run this script as it removes the Xen configuration
+ file from /etc/xen and potentially removes LVM and EVMS volumes.
+
+  (When invoked with the '--test' flag the script will continue running,
+ but will fail to remove anything which the user does not have permission
+ to delete.)
+
+
+=head1 LOOPBACK EXAMPLE
+
+  Assuming that you have three images 'foo', 'bar', and 'baz', stored
+ beneath /home/xen the first two may be deleted via:
+
+    xen-delete-image --dir=/home/xen foo bar
+
+  You may also delete them by running:
+
+    xen-delete-image --dir=/home/xen --hostname=foo --hostname=bar
+
+  (The matching Xen configuration files beneath /etc/xen will also be
+ removed.)
+
+
+=head1 LVM EXAMPLE
+
+  Assuming that you have the volume group 'skx-vol' containing three
+ Xen instances 'foo', 'bar', and 'baz' the first two may be deleted via:
+
+    xen-delete-image --lvm=skx-vol foo bar
+
+  This will remove the volumes 'foo-disk', 'foo-swap', 'bar-disk',
+ and 'bar-swap'.
+
+  Note that if the images were created with "--noswap" then the swap
+ volumes will not be present, so will not need to be deleted.
+
+  The Xen configuration files will also be removed from beneath /etc/xen.
+
+
+=head1 EVMS EXAMPLE
+
+  Assuming that you have the container 'mycontainer' containing three
+ Xen instances 'foo', 'bar', and 'baz' the first two may be deleted via:
+
+    xen-delete-image --evms=lvm2/mycontainer --hostname=foo --hostname=bar
+
+  This will remove the volumes 'foo-disk', 'foo-swap', 'bar-disk',
+ and 'bar-swap'.
+
+  Note that if the images were created with "--noswap" then the swap
+ volumes will not be present, so will not need to be deleted.
+
+  The Xen configuration files will also be removed.
+
+
+=head1 AUTHORS
+
+ Steve Kemp, http://www.steve.org.uk/
+ Axel Beckert, http://noone.org/abe/
+ Stéphane Jourdois
+
+
+=head1 LICENSE
+
+Copyright (c) 2005-2009 by Steve Kemp, (c) 2010-2013 by The Xen-Tools
+Development Team. All rights reserved.
+
+This module is free software;
+you can redistribute it and/or modify it under
+the same terms as Perl itself.
+The LICENSE file contains the full text of the license.
+
+=cut
+
+
+use strict;
+use English;
+use Getopt::Long;
+use Pod::Usage;
+use File::Path;
+use Xen::Tools::Common;
+
+
+#
+#  Configuration options, initially read from the configuration files
+# but may be overridden by the command line.
+#
+#  Command line flags *always* take precedence over the configuration file.
+#
+my %CONFIG;
+
+#
+# Release number.
+#
+my $RELEASE = '4.5';
+
+
+#
+# Find xen toolstack command
+#
+$CONFIG{ 'xm' } = findXenToolstack();
+
+#
+#  Default values
+#
+$CONFIG{ 'extension' } = '.cfg';
+
+
+#
+# Read the global configuration file if it exists.
+#
+if ( -e "/etc/xen-tools/xen-tools.conf" )
+{
+    readConfigurationFile("/etc/xen-tools/xen-tools.conf", \%CONFIG);
+}
+
+
+#
+#  Parse command line arguments, these override the values from the
+# configuration file.
+#
+parseCommandLineArguments();
+
+
+#
+#  Check that we got valid arguments.
+#
+checkArguments();
+
+
+#
+#  Abort if non-root user.
+#
+if ( ( !$CONFIG{ 'test' } ) && ( $EFFECTIVE_USER_ID != 0 ) )
+{
+    print <<E_O_ROOT;
+
+  This script is not running with root privileges, so the configuration
+ file(s) beneath /etc/xen will not be removed.
+
+E_O_ROOT
+
+    exit 127;
+}
+
+
+
+#
+#  Loop over the supplied arguments, and attempt to delete each
+# image. Check both, bare parameters as well as --hostname options.
+#
+
+my @hosts = ();
+if (exists($CONFIG{ 'hostname' }) and defined($CONFIG{ 'hostname' })) {
+    my $hostname_option = $CONFIG{ 'hostname' };
+    @hosts = 'ARRAY' eq ref($hostname_option) ?
+        @$hostname_option : $hostname_option;
+}
+
+foreach my $name (@ARGV, @hosts)
+{
+    my %PER_HOST_CONFIG = %CONFIG;
+    $PER_HOST_CONFIG{ 'hostname' } = $name;
+    unless ( xenRunning($name, \%PER_HOST_CONFIG) )
+    {
+        deleteXenImage($name);
+    }
+    else
+    {
+        print "Skipping xen guest '$name' - it appears to be running.\n";
+    }
+}
+
+#
+#  All done.
+#
+exit 0;
+
+
+
+
+=begin doc
+
+  Parse the arguments specified upon the command line.
+
+=end doc
+
+=cut
+
+sub parseCommandLineArguments
+{
+    my $HELP    = 0;
+    my $MANUAL  = 0;
+    my $VERSION = 0;
+    $CONFIG{ 'dry-run' } = 0;
+
+    #  Parse options.
+    #
+    GetOptions( "dir=s",       \$CONFIG{ 'dir' },
+                "dry-run",     \$CONFIG{ 'dry-run' },
+                "lvm=s",       \$CONFIG{ 'lvm' },
+                "evms=s",      \$CONFIG{ 'evms' },
+                "extension:s", \$CONFIG{ 'extension' },
+                "hostname=s@", \$CONFIG{ 'hostname' },
+                "test",        \$CONFIG{ 'test' },
+                "verbose",     \$CONFIG{ 'verbose' },
+                "no-xen-ok",   sub { warn "Option --no-xen-ok is deprecated and ignored."; },
+                "help",        \$HELP,
+                "manual",      \$MANUAL,
+                "version",     \$VERSION
+              );
+
+    pod2usage(1) if $HELP;
+    pod2usage( -verbose => 2 ) if $MANUAL;
+
+
+    if ($VERSION)
+    {
+        print "xen-delete-image release $RELEASE\n";
+        exit;
+
+    }
+}
+
+
+
+=begin doc
+
+  Check that we received the arguments we expected.
+
+=end doc
+
+=cut
+
+sub checkArguments
+{
+
+    #
+    #  When testing we only care about loopback images, not disk images.
+    #
+    if ( $CONFIG{ 'test' } and ( $CONFIG{ 'lvm' } or $CONFIG{ 'evms' } ))
+    {
+        print "Error: --test only works with --dir.\n";
+        exit 1;
+    }
+
+    #
+    #  Make sure we got one and only one installation method.
+    #
+    my $count = 0;
+    foreach my $type (qw/dir lvm evms/)
+    {
+        $count += 1 if defined( $CONFIG{ $type } );
+    }
+
+    #
+    #  Show a decent error for when either zero or more than one options
+    # were selected.
+    #
+    if ( $count != 1 )
+    {
+        print "Please select one and only one of the installation methods to delete the DomU:\n";
+        print " --dir\n";
+        print " --evms\n";
+        print " --lvm\n";
+        exit 2;
+    }
+}
+
+
+
+=begin doc
+
+  Delete the named image, and the corresponding configuration file
+ from /etc/xen.
+
+=end doc
+
+=cut
+
+sub deleteXenImage
+{
+    my ($hostname) = (@_);
+
+    #
+    #  Collect the names of files to delete.
+    #
+    my @delete;
+
+    #
+    #  Delete the Xen auto-start file if it exists.
+    #
+    if ( -e "/etc/xen/auto/$hostname".$CONFIG{ 'extension' } )
+    {
+        push( @delete, "/etc/xen/auto/$hostname".$CONFIG{ 'extension' } );
+    }
+
+    #
+    #  Delete the Xen configuration file if it exists.
+    #
+    if ( -e "/etc/xen/$hostname".$CONFIG{ 'extension' } )
+    {
+        push( @delete, "/etc/xen/$hostname".$CONFIG{ 'extension' } );
+    }
+
+    #
+    #  If we're working on disk images remove them.
+    #
+    foreach my $file (@delete)
+    {
+        if ( -e $file )
+        {
+            if ($CONFIG{ 'dry-run' }) {
+                print "Would delete: $file\n";
+            } else {
+                print "Deleting: $file\n";
+                unlink($file);
+            }
+        }
+        else
+        {
+            print "Ignoring missing file: $file\n";
+        }
+    }
+
+    my %PER_HOST_CONFIG = %CONFIG;
+    $PER_HOST_CONFIG{ 'hostname' } = $hostname;
+    if ( defined( $CONFIG{ 'dir' } ) )
+    {
+        my $prefix = $CONFIG{ 'dir' } . "/domains/";
+
+        #
+        #  Now remove the directory.
+        #
+        if ( -d $prefix . $hostname )
+        {
+            if ($CONFIG{ 'dry-run' }) {
+                print "Would delete: $prefix$hostname\n";
+            } else {
+                print "Removing: " . $prefix . $hostname . "\n";
+                rmtree( $prefix . $hostname );
+            }
+        }
+    }
+    elsif ( defined( $CONFIG{ 'lvm' } ) )
+    {
+
+        #
+        #  LVM volumes
+        #
+        #
+        #  TODO: Check we're not mounted.
+        #
+
+        if ( -e "/dev/$CONFIG{'lvm'}/$hostname-swap" )
+        {
+            if ($CONFIG{ 'dry-run' }) {
+                print "Would remove LVM swap volume /dev/$CONFIG{'lvm'}/$hostname-swap\n";
+            } else {
+                print "Removing swap volume\n";
+                runCommand("lvremove /dev/$CONFIG{'lvm'}/$hostname-swap --force", \%PER_HOST_CONFIG);
+            }
+        }
+
+        if ( -e "/dev/$CONFIG{'lvm'}/$hostname-disk" )
+        {
+            if ($CONFIG{ 'dry-run' }) {
+                print "Would remove LVM disk volume /dev/$CONFIG{'lvm'}/$hostname-disk\n";
+            } else {
+                print "Removing LVM disk volume\n";
+                runCommand("lvremove /dev/$CONFIG{'lvm'}/$hostname-disk --force", \%PER_HOST_CONFIG);
+            }
+        }
+
+    }
+    elsif ( defined( $CONFIG{ 'evms' } ) )
+    {
+
+        #
+        #  EVMS volumes
+        #
+        #
+        #  TODO: Check we're not mounted.
+        #
+
+        if ( -e "/dev/evms/$hostname-swap" )
+        {
+            if ($CONFIG{ 'dry-run' }) {
+                print "Would remove EVMS swap volume: /dev/evms/$hostname-swap\n";
+                print "Would remove EVMS swap volume: $CONFIG{'evms'}/$hostname-swap\n";
+            } else {
+                print "Removing EVMS swap volume\n";
+                runCommand("echo Delete : /dev/evms/$hostname-swap | evms", \%PER_HOST_CONFIG);
+                runCommand("echo Delete : $CONFIG{'evms'}/$hostname-swap | evms", \%PER_HOST_CONFIG);
+            }
+        }
+
+        if ( -e "/dev/evms/$hostname-disk" )
+        {
+            if ($CONFIG{ 'dry-run' }) {
+                print "Would remove EVMS disk volume: /dev/evms/$hostname-swap\n";
+                print "Would remove EVMS disk volume: $CONFIG{'evms'}/$hostname-swap\n";
+            } else {
+                print "Removing EVMS disk volume\n";
+                runCommand("echo Delete : /dev/evms/$hostname-disk | evms", \%PER_HOST_CONFIG);
+                runCommand("echo Delete : $CONFIG{'evms'}/$hostname-disk | evms", \%PER_HOST_CONFIG);
+            }
+        }
+
+    }
+    else
+    {
+        print "Error:  No installation type specified\n";
+        print "Can't happen!\n";
+        print "Hostname : $hostname\n";
+        exit 127;
+    }
+}

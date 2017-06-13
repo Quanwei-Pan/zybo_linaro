@@ -1,0 +1,14 @@
+/.
+/usr
+/usr/lib
+/usr/lib/arm-linux-gnueabihf
+/usr/lib/arm-linux-gnueabihf/librados.so.2.0.0
+/usr/share
+/usr/share/lintian
+/usr/share/lintian/overrides
+/usr/share/lintian/overrides/librados2
+/usr/share/doc
+/usr/share/doc/librados2
+/usr/share/doc/librados2/changelog.Debian.gz
+/usr/share/doc/librados2/copyright
+/usr/lib/arm-linux-gnueabihf/librados.so.2

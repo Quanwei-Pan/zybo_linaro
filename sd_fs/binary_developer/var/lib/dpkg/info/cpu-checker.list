@@ -1,0 +1,14 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/cpu-checker
+/usr/share/doc/cpu-checker/changelog.Debian.gz
+/usr/share/doc/cpu-checker/copyright
+/usr/share/man
+/usr/share/man/man1
+/usr/share/man/man1/kvm-ok.1.gz
+/usr/share/man/man1/check-bios-nx.1.gz
+/usr/sbin
+/usr/sbin/check-bios-nx
+/usr/sbin/kvm-ok

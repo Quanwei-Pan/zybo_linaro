@@ -1,0 +1,16 @@
+/.
+/usr
+/usr/bin
+/usr/share
+/usr/share/man
+/usr/share/man/man8
+/usr/share/man/man8/debugedit.8.gz
+/usr/share/doc
+/usr/share/doc/debugedit
+/usr/share/doc/debugedit/copyright
+/usr/lib
+/usr/lib/rpm
+/usr/lib/rpm/debugedit
+/usr/bin/debugedit
+/usr/share/doc/debugedit/changelog.Debian.gz
+/usr/share/doc/debugedit/NEWS.Debian.gz

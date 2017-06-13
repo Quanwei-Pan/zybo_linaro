@@ -1,0 +1,5 @@
+aba2b448650e2d3fb7e751dc1217c413  usr/bin/latrace
+528580b882d1a478a901ffea684f28c5  usr/lib/latrace/libltaudit.so.0.5.11
+949f760804da9c5ab3d5586a3f7f2289  usr/share/doc/latrace/changelog.Debian.gz
+6fe7f5f5cdc916fd306d53a85e194fdb  usr/share/doc/latrace/copyright
+746da3e5e779300d7bd5d71d8a9d6341  usr/share/man/man1/latrace.1.gz

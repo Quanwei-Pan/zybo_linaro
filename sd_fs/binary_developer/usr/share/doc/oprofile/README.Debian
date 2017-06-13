@@ -1,0 +1,10 @@
+If you are running Ubuntu and wish to gather profiling information
+about your kernel, you will need to install the linux-image-debug
+package corresponding to your running kernel version. Those packages
+are large, and currently not available through the normal Ubuntu
+package repositories. Instead, please go to
+
+  http://ddebs.ubuntu.com/pool/main/l/linux/
+
+and download the linux-image-debug corresponding to your
+running kernel. The *.ddeb has to be installed via dpkg or gdebi.

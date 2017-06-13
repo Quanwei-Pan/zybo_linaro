@@ -1,0 +1,11 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/libxenstore3.0
+/usr/share/doc/libxenstore3.0/changelog.Debian.gz
+/usr/share/doc/libxenstore3.0/copyright
+/usr/lib
+/usr/lib/arm-linux-gnueabihf
+/usr/lib/arm-linux-gnueabihf/libxenstore.so.3.0.3
+/usr/lib/arm-linux-gnueabihf/libxenstore.so.3.0

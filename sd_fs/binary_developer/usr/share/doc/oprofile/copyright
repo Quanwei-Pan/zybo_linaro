@@ -1,0 +1,45 @@
+This package was debianized by Al Stone <ahs3@debian.org> on
+Wed, 14 Aug 2002 18:03:29 -0600.
+
+LIU Qi <liuqi82@gmail.com> was previously the current Debian package maintainer.
+
+Roberto C. Sanchez <roberto@connexer.com> is the current Debian package maintainer.
+
+It was downloaded from http://oprofile.sourceforge.net
+
+The majority of the code is:
+    Copyright (C) 2000 THE VICTORIA UNIVERSITY OF MANCHESTER and John Levon
+
+    Most portions of the UI are:
+       Copyright (C) 2001 Philippe Elie
+
+oprofile was written by John Levon <levon@movementarian.org>
+and Philippe Elie <phil.el@wanadoo.fr>.
+
+Maynard Johnson <maynardj@us.ibm.com> is the current maintainer.
+
+Dave Jones <davej@suse.de> provided bug fixes and support for
+the AMD Athlon, and AMD Hammer families of CPUs.
+
+Bob Montgomery <bobm@fc.hp.com> provided bug fixes, the initial RTC
+driver and the initial ia64 driver.
+
+Will Cohen <wcohen@redhat.com> integrated the ia64 driver into the
+oprofile release, and contributed bug fixes and several cleanups.
+
+Graydon Hoare <graydon@redhat.com> provided P4 port, bug fixes and cleanups.
+
+Ralf Baechle <ralf@linux-mips.org> provided the MIPS port.
+
+Other contributors are listed in the ChangeLog.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published
+by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.  The full text of the License
+may be found in /usr/share/common-licenses/GPL-2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.

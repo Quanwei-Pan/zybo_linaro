@@ -1,0 +1,33 @@
+Format-Specification: http://anonscm.debian.org/viewvc/dep/web/deps/dep5.mdwn?view=markup&pathrev=135
+Maintainer: Adam Kennedy <adamk@cpan.org>
+Source: http://search.cpan.org/dist/File-Which/
+Name: File-Which
+
+Files: *
+Copyright: 2009, Adam Kennedy <adamk@cpan.org>
+ 2002, Per Einar Ellefsen <pereinar@cpan.org>
+License: GPL-1+ or Artistic
+
+Files: debian/*
+Copyright: 2002-2004, Ardo van Rangelrooij <ardo@debian.org>
+ 2004, Daniel Ruoso <daniel@ruoso.com>
+ 2006, gregor herrmann <gregoa@debian.org>
+ 2009, Jonathan Yu <jawnsy@cpan.org>
+ 2012, Florian Schlichting <fschlich@zedat.fu-berlin.de>
+License: GPL-1+ or Artistic
+
+License: GPL-1+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 1, or (at your option)
+ any later version.
+ .
+ On Debian systems, the complete text of version 1 of the GNU General
+ Public License can be found in `/usr/share/common-licenses/GPL-1'.
+
+License: Artistic
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the Artistic License, which comes with Perl.
+ .
+ On Debian systems, the complete text of the Artistic License can be
+ found in `/usr/share/common-licenses/Artistic'.

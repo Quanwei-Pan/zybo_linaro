@@ -1,0 +1,6 @@
+a259ab1d53452dfeda375b8551b8380e  usr/bin/qemu-system-i386
+b512b8f6cf40024b20ba8460e6b2e4a3  usr/bin/qemu-system-x86_64
+7455ef7cb35ad223d541a036dce59f5f  usr/share/doc/qemu-system-x86/NEWS.Debian.gz
+cda4bafeda4faef560d4f02f90af6d1c  usr/share/doc/qemu-system-x86/copyright
+61d77f89e2c5b755fd7134c9f42fdcdf  usr/share/man/man1/qemu-system-i386.1.gz
+61d77f89e2c5b755fd7134c9f42fdcdf  usr/share/man/man1/qemu-system-x86_64.1.gz

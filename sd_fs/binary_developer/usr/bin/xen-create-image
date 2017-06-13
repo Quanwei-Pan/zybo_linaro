@@ -1,0 +1,4209 @@
+#!/usr/bin/perl -w
+
+=encoding utf8
+
+=head1 NAME
+
+xen-create-image - Easily create new Xen instances with networking and OpenSSH.
+
+=head1 SYNOPSIS
+
+xen-create-image --hostname=<hostname> <further options>
+
+
+=head1 EXAMPLES
+
+xen-create-image --hostname=some-domu --dist=wheezy --lvm=vg0
+
+xen-create-image --hostname=some-domu --dist=precise --dir=/srv/xen
+
+See below for more specific examples: LOOPBACK EXAMPLES, LVM EXAMPLE
+and EVMS EXAMPLE.
+
+
+=head1 OPTIONS
+
+  Help Options:
+
+   --help        Show the help information for this script.
+
+   --manual      Read the manual, and examples, for this script.
+
+   --(no)verbose (Don't) show more of what xen-create-image is
+                 currently doing.
+
+   --dumpconfig  Show current configuration.
+
+   --version     Show the version number and exit.
+
+
+
+  Size / General options:
+
+   --(no)accounts
+                (Don't) copy all non-system accounts to the guest
+                image
+
+   --admins     Specify that some administrators should be created for
+                this image, using xen-shell.
+
+   --(no)boot   (Don't) boot the new instance after creating it.
+
+   --cache=bool Cache .deb files on the host when installing the new
+                guest with the debootstrap tool. Accepted values:
+                "yes" (default) and "no".
+
+   --cachedir=/path/to/cache/directory
+                Override the default .deb cache directory. Defaults to
+                /var/cache/apt/archives/ if it exists (i.e. on Debian
+                and Ubuntu) and /var/cache/xen-tools/archives/ else
+                (i.e. on Fedora and CentOS).
+
+   --config=file
+                Read the specified file in addition to the global
+                configuration file.
+
+   --(no)copyhosts
+                (Don't) copy entries from the dom0's /etc/hosts file
+                to the guest
+
+   --copy-cmd   NOP:  Ignored.
+
+   --debootstrap-cmd=/path/to/command
+                Specify which debootstrap command is used. Defaults to
+                debootstrap if both, debootstrap and cdebootstrap are
+                installed. Specifying the path is optional.
+
+   --disk_device=diskname
+                Use specified device name for virtual devices instead
+                of the default value "xvda".
+
+   --extension=ext
+                Specify the suffix to give the Xen configuration
+                file. (Default value: ".cfg")
+
+   --(no)force  (Don't) force overwriting existing images. This will
+                remove existing images or LVM volumes which match
+                those which are liable to be used by the new
+                invocation.
+
+   --fs=fs      Specify the filesystem type to use for the new guest.
+                Valid choices are 'ext2', 'ext3', 'ext4', 'reiserfs',
+                'xfs' or 'btrfs'. (Note: pygrub *DOES NOT* support
+                xfs)
+
+   --genpass=1  Generate a random root password (default, set to 0 to
+                turn off)
+
+   --genpass_len=N
+                Override the default password length of 8 and generate
+                a random password of length N. Note: this only works
+                in conjunction with --genpass
+
+   --hash_method=algorithm
+                Override the default hashing method of sha256 and use
+                the provided algorithm. Can be : md5, sha256 or sha512
+
+   --hooks=1    Specify whether to run hooks after the image is created.
+
+   --ide        Use IDE names for virtual devices (i.e. hda not xvda)
+
+   --image=str  Specify whether to create "sparse" or "full" disk
+                images.  Full images are mandatory when using LVM, so
+                this setting is ignored in that case.
+
+   --image-dev=/path/to/device
+                Specify a physical/logical volume for the disk image.
+
+   --initrd=/path/to/initrd
+                Specify the initial ramdisk. If an image is specified
+                it must exist.
+
+   --install=1  Specify whether to install the guest system or not.
+
+   --(no)keep   (Don't) keep our images if installation fails. It
+                maybe unmounted, though.
+
+   --kernel=/path/to/kernel
+                Set the path to the kernel to use for domU. If a
+                kernel is specified it must exist.
+
+   --memory=size
+                Setup the amount of memory allocated to the new
+                instance.  As suffix recognized size units are "M",
+                "MB", "G" and "GB" (case does not matter). If there's
+                no unit given, megabytes are assumed.
+
+   --maxmem=size
+                Setup the maximum amount of memory that can be allocated
+                to the new instance. As suffix recognized size units are "M",
+                "MB", "G" and "GB" (case does not matter). If there's
+                no unit given, megabytes are assumed.
+                Required for dynamic memory ballooning.
+
+   --modules=/path/to/modules
+                Set the path to the kernel modules to use for domU.
+                If modules are specified they must exist.
+
+   --nohosts    Don't touch /etc/hosts on the dom0.
+
+   --noswap     Do not create a swap partition. When this option is
+                used the system will not have a swap entry added to
+                its /etc/fstab file either.
+
+   --output=dir Specify the output directory to create the xen
+                configuration file within.
+
+   --partitions=file
+                Use a specific partition layout configuration file.
+                See /etc/xen-tools/partitions.d/sample-server for an
+                example partitioning configuration.  Not supported
+                with the image-dev and swap-dev options.  Parameters
+                fs, size, swap and noswap are ignored when using this
+                option.
+
+   --password=passphrase
+                Set the root password for the new guest.
+                Note: This overrides --genpass
+
+   --(no)passwd (Don't) ask for a root password interactively during
+                setup.  NOTE: This overrides --genpass --password.
+
+   --(no)pygrub DomU should (not) be booted using pygrub.
+
+   --role=role  Run the specified role script(s) post-install.  Role
+                scripts are discussed later in this manpage.  Can be
+                an absolute path. Otherwise it's relative to the value
+                of --roledir.
+
+   --role-args="--arg1 --arg2"
+                Pass the named string literally to any role script.
+                This is useful for site-specific roles.
+
+   --finalrole=role
+                Similar to role scripts. Run the specified role
+                script(s) after cfg file creation.
+
+   --roledir=/path/to/directory
+                Specify the directory which contains the role scripts.
+                This defaults to /etc/xen-tools/role.d/
+
+   --scsi       Use SCSI names for virtual devices (i.e. sda not xvda)
+
+   --serial_device=serialname
+                Install a getty on the specified serial device instead
+                of the default device.
+
+   --size=size  Set the size of the primary disk image.
+
+   --swap=size  Set the size of the swap partition.
+
+   --swap-dev=/path/to/device
+                Specify a physical/logical volume for swap usage.
+
+   --tar-cmd    NOP: Ignored.
+
+   --dontformat Do not format the devices specified for installation.
+                Useful if you want tighter control over the filesystem
+                creation. Requires the filesystems to be created
+                beforehand.
+
+   --vcpus=num
+                Set the number of vcpus that the new instance will
+                have instead of the default value of "1".
+
+
+
+  Installation options:
+
+   --arch=arch  Pass the given architecture to debootstrap, rinse, or
+                rpmstrap when installing the system.  This argument is
+                ignored for other install methods.
+
+   --dist=dist  Specify the distribution you wish to install.
+
+   --install-method=method
+                Specify the installation method to use. Valid methods
+                are:
+
+                * debootstrap
+                * cdebootstrap
+                * rinse
+                * rpmstrap (deprecated)
+                * tar (needs --install-source=tarball.tar)
+                * copy (needs --install-source=/path/to/copy/from)
+
+                (Default value for Debian and Ubuntu: debootstrap)
+
+   --install-source=/path/to/tarball
+                Specify the source path to use when installing via
+                a copy or tarball installation.
+
+   --mirror=url Setup the mirror to use when installing via
+                debootstrap. (Default value: mirror used in
+                /etc/apt/sources.list or for Debian
+                "http://http.debian.net/debian/" and for Ubuntu
+                "http://archive.ubuntu.com/ubuntu/")
+
+                The above mentioned Debian mirror hostname
+                automatically tries to choose a more or less close
+                Debian mirror. See http://http.debian.net/ for
+                details.
+
+   --apt_proxy=protocol://hostname:port/
+                Specify a proxy to be used by debootstrap, and within
+                the guest. Needs the same syntax as APT's
+                Acquire::http::Proxy. See apt.conf(5).
+
+   --template=tmpl
+                Specify which template file to use when creating the
+                Xen configuration file.
+
+
+
+  Networking options:
+
+   --bridge=brname
+                Optionally, set a specific bridge for the new
+                instance.  This can be especially useful when running
+                multiple bridges on a dom0.
+
+   --broadcast=123.456.789.ABC
+                Setup the broadcast address for the new instance.
+
+   --(no)dhcp   The guest will (not) be configured to fetch its
+                networking details via DHCP.
+
+   --gateway=gw Setup the network gateway for the new instance.
+
+   --ip=123.456.789.ABC
+                Setup the IP address of the machine, multiple IPs are
+                allowed.  When specifying more than one IP the first
+                one is setup as the "system" IP, and the additional
+                ones are added as aliases.
+
+                Note that Xen 3.x supports a maximum of three vif
+                statements per guest. This option conflicts with
+                --dhcp.
+
+   --mac=AA:BB:CC:DD:EE:FF
+                Specify the MAC address to use for a given interface.
+                This is only valid for the first IP address specified,
+                or for DHCP usage.  (ie. you can add multiple --ip
+                flags, but the specific MAC address will only be used
+                for the first interface.)
+
+   --netmask=123.456.789.ABC
+                Setup the netmask for the new instance.
+
+   --nameserver="123.456.789.ABC 123.456.789.DEF"
+                Setup the nameserver of the machine, multiple space
+                separated nameservers are allowed.  If not provided,
+                Dom0's /etc/resolv.conf will be copied to guest.
+
+   --vifname=vifname
+                Optionally, set a specific vif name for the new
+                instance.
+
+
+
+  Mandatory options:
+
+   --dir=/path/to/directory
+
+                Specify where the output images should go.
+                Subdirectories will be created for each guest.
+
+                If you do not wish to use loopback images specify
+                --lvm or --evms.  (These three options are mutually
+                exclusive.)
+
+   --evms=lvm2/container
+                Specify the container to save images within,
+                i.e. '--evms lvm2/mycontainer'.  If you do not wish to
+                use EVMS specify --dir or --lvm.  (These three options
+                are mutually exclusive.)
+
+   --hostname=host.example.org
+                Set the hostname of the new guest system.  Ideally
+                this will be fully-qualified since several of the hook
+                scripts will expect to be able to parse a domain name
+                out of it for various purposes.
+
+   --lvm=vg     Specify the volume group to save images within.
+                If you do not wish to use LVM specify --dir or --evms.
+                (These three options are mutually exclusive.)
+
+
+=head1 NOTES
+
+  This script is a wrapper around three distinct external tools which
+ complete various aspects of the new system installation.
+
+=over 8
+
+=item B<xt-install-image>
+Install a new distribution.
+
+=item B<xt-customize-image>
+Run a collection of hook scripts to customise the freshly installed system.
+
+=item B<xt-create-xen-config>
+Create a Xen configuration file in so that xm/xl can start the new domain.
+
+=back
+
+  The result of invoking these three scripts, and some minor glue between
+ them, is a simple means of creating new Xen guest domains.
+
+
+=head1 DESCRIPTION
+
+  xen-create-image is a simple script which allows you to create new
+ Xen instances easily.  The new image will be given two volumes.  These
+ volumes will be stored upon the host as either loopback files, or
+ LVM logical volumes:
+
+   1.  An image for the systems root disk.
+   2.  An image for the systems swap device.
+
+  The new virtual installations will be configured with networking,
+ have OpenSSH installed upon it, and have most of its basic files
+ setup correctly.
+
+  If you wish you can configure arbitrary partitioning schemes, rather
+ than being restricted to just the two standard volumes.  For more
+ details on this please see the later section in this manual "PARTITIONING".
+
+  If you wish to install additional packages or do any additional
+ configuration of your new guests, please read the section on "ROLES".
+
+
+=head1 CONFIGURATION
+
+  To reduce the length of the command line each of the supported options
+ may be specified inside a configuration file.
+
+  The global configuration file read for options is:
+
+     /etc/xen-tools/xen-tools.conf
+
+  The configuration file may contain comments which begin with the
+ hash '#' character.  Otherwise the format is 'key = value'.
+
+  A sample configuration file would look like this:
+
+=for example begin
+
+  #
+  #  Output directory.  Images are stored beneath this directory, one
+  # subdirectory per hostname.
+  #
+  dir = /home/xen
+
+  #
+  #  LVM users should disable the 'dir' setting above, and instead
+  # specify the name of the volume group to use.
+  #
+  # lvm = myvolume
+
+  #
+  #  EVMS users should disable the dir setting above and instead specify
+  # a container.  For example, if you have an lvm2 container named box,
+  # put lvm2/box.  This is how it is named in the evms interface.
+  #
+  #  Warning... this has not been tested with anything but lvm2 but should
+  # be generalizable.
+  #
+  # evms= lvm2/myvolume
+
+  #
+  #  Disk and Sizing options.
+  #
+  size       = 2Gb      # Disk image size.
+  image      = full     # Allocate the full disk size immediately.
+  memory     = 128Mb    # Memory size
+  maxmem     = 512Mb    # Memory size
+  swap       = 128Mb    # Swap size
+  fs         = ext3     # use EXT3 filesystems
+  dist       = stable   # Default distribution to install.
+
+  #
+  # Kernel options.
+  #
+  kernel      = /boot/vmlinuz-`uname -r`
+  initrd      = /boot/initrd.img-`uname -r`
+
+  #
+  # Networking options.
+  #
+  gateway    = 192.168.1.1
+  broadcast  = 192.168.1.255
+  netmask    = 255.255.255.0
+
+
+  #
+  # Installation method:
+  # One of "copy", "debootstrap", "cdebootstrap", "rinse", "rpmstrap", or "tar".
+  #
+  install-method = debootstrap
+
+=for example end
+
+  Using this configuration file a new image may be created with the
+ following command:
+
+      xen-create-image --hostname=vm03.my.flat --ip=192.168.1.201
+
+  This makes use of loopback images stored beneath /home/xen and
+ will be installed via the debootstrap command.
+
+
+=head1 NETWORKING AUTO-SETUP
+
+  We've already seen how the "gateway" and "netmask" options can
+ be used to specify the networking options of the freshly created
+ Xen guests.
+
+  One other useful shortcut is the use of an automatic IP address.
+ You can specify '--ip=auto' and the system will choose and use
+ an IP address from those listed in /etc/xen-tools/ips.txt.
+
+  For example if you wished to have Xen guests automatically
+ take an address from the range 192.168.1.100-192.168.1.200 you
+ would first prepare the system by running this:
+
+=for example start
+
+  rm /etc/xen-tools/ips.txt
+  for i in $(seq 100 200) ; do echo 192.168.1.$i >> /etc/xen-tools/ips.txt ; done
+
+=for example end
+
+  Now you can create a guest with the command:
+
+=for example start
+
+  xen-create-image --ip=auto --hostname=blah [--dist=...]
+
+=for example end
+
+  The first time this ran the machine would receive an IP address
+ from the pool which we've created.  This IP would be marked as used,
+ and would no longer be available.  If all the IP addresses are taken
+ then the system will fail.
+
+
+=head1 PARTITIONING
+
+  By default all new guests are created with two "volumes", one
+ for the root filesystem and one for the new system's swap.
+
+  If you wish you may specify an alternative partitioning scheme.
+ Simply create a file inside the directory /etc/xen-tools/partitions.d/
+ specifying your partition layout.  (Use the existing file "sample-server"
+ as a template).
+
+  Now when you create a new image specify the name of this file with as
+ an argument to the --partition option.
+
+
+=head1 XEN CONFIGURATION FILE
+
+  Once a new image has been created an appropriate configuration file
+ for Xen will be saved in the directory /etc/xen by default.  However
+ you may change the output directory with the --output flag.
+
+  The configuration file is built up using the template file
+ /etc/xen-tools/xm.tmpl - which is a file processed via
+ the Text::Template perl module.
+
+  If you wish to modify the files which are generated please make your
+ changes to that input file.
+
+  Alternatively you can create multiple configuration files and
+ specify the one to use with the --template option.
+
+
+=head1 LOOPBACK EXAMPLES
+
+  The following will create a 2Gb disk image, along with a 128Mb
+ swap file with Debian Stable setup and running via DHCP.
+
+     xen-create-image --size=2Gb --swap=128Mb --dhcp --dist=stable \
+          --dir=/home/xen --hostname=vm01.my.flat
+
+  This next example sets up a host which has the name 'vm02.my.flat' and
+ IP address 192.168.1.200, with the gateway address of 192.168.1.1
+
+     xen-create-image --size=2Gb --swap=128Mb \
+          --ip=192.168.1.200 \
+          --netmask=255.255.255.0
+          --gateway=192.168.1.1 \
+          --nameserver=192.168.1.1 \
+          --dir=/home/xen --hostname=vm02.my.flat
+
+  The directory specified for the output will be used to store the volumes
+ which are produced.  To avoid clutter each host will have its images
+ stored beneath the specified directory, named after the hostname.
+
+  For example the images created above will be stored as:
+
+   $dir/domains/vm01.my.flat/
+   $dir/domains/vm01.my.flat/disk.img
+   $dir/domains/vm01.my.flat/swap.img
+
+   $dir/domains/vm02.my.flat/
+   $dir/domains/vm02.my.flat/disk.img
+   $dir/domains/vm02.my.flat/swap.img
+
+  The '/domains/' subdirectory will be created if necessary.
+
+
+=head1 LVM EXAMPLE
+
+  If you wish to use an LVM volume group instead of a pair of loopback
+ images as shown above you can instead use the --lvm argument to
+ specify one.
+
+     xen-create-image --size=2Gb --swap=128Mb --dhcp \
+          --lvm=myvolumegroup --hostname=vm01.my.flat
+
+  The given volume group will have two new logical volumes created within it:
+
+   ${hostname}-swap
+   ${hostname}-disk
+
+  The disk image may be mounted, as you would expect, with the following
+ command:
+
+    mkdir -p /mnt/foo
+    mount /dev/myvolumegroup/vm01.my.flat-disk /mnt/foo
+
+
+=head1 EVMS EXAMPLE
+
+  If you wish to use an EVMS storage container instead of a pair of loopback
+ images as shown above you can instead use the --evms argument to
+ specify one.  The below example assumes an lvm2 container.
+
+     xen-create-image --size=2Gb --swap=128Mb --dhcp \
+          --evms=lvm2/myvolumegroup --hostname=vm01.my.flat
+
+  The given storage container will have two new EVMS volumes created within it:
+
+   ${hostname}-swap
+   ${hostname}-disk
+
+  The disk image may be mounted, as you would expect, with the following
+ command:
+
+    mkdir -p /mnt/foo
+    mount /dev/evms/vm01.my.flat-disk /mnt/foo
+
+
+=head1 INSTALLATION METHODS
+
+  The new guest images may be installed in several different ways:
+
+  1.  Using the [c]debootstrap command, which must be installed and present.
+  2.  Using the rpmstrap command, which must be installed and present.
+  3.  using the rinse command, which must be installed and present.
+  4.  By copying an existing installation.
+  5.  By untarring a file containing a previous installation.
+
+  These different methods can be selected by either the command line
+ arguments, or settings in the configuration file.  Only one installation
+ method may be specified at a time; they are mutually-exclusive.
+
+
+=head1 INSTALLATION SPEEDUPS
+
+  After performing your first installation you can customize it, or
+ use it untouched, as a new installation source.  By doing this you'll
+ achieve a significant speedup, even above using the debootstrap caching
+ support.
+
+  There are two different ways you can use the initial image as source
+ for a new image:
+
+  1.  By tarring it up and using the tar-file as an installation source.
+  2.  By mounting the disk image of the first system and doing a literal copy.
+
+  Tarring up a pristine, or customised, image will allow you to install
+ with a command such as:
+
+     xen-create-image --size=2Gb --swap=128Mb --dhcp \
+          --lvm=myvolumegroup --hostname=vm01.my.flat \
+          --install-method=tar --install-source=/path/to/tar.file.tar
+
+  The advantage of the tarfile approach is that you'll not need to
+ keep a disk image mounted if you were to use the --copy argument
+ to create a new image using the old one as source:
+
+     xen-create-image --size=2Gb --swap=128Mb --dhcp \
+          --lvm=myvolumegroup --hostname=vm01.my.flat \
+          --install-method=copy --install-source=/path/to/copy/from
+
+
+=head1 DEBOOTSTRAP CACHING
+
+  When installing new systems with the debootstrap tool there is
+ a fair amount of network overhead.
+
+  To minimize this the .deb files which are downloaded into the
+ new instance are cached by default upon the host, in the directory
+ /var/cache/apt/archives or, if this does not exist, in
+ /var/cache/xen-tools/archives. This can be overridden with the
+ --cache-dir command-line and configuration option.
+
+  This feature can be disabled with the command line flag --cache=no,
+ or by the matching setting in the configuration file.
+
+  When a new image is created these packages are copied into the new
+ image - before the debootstrap process runs - this should help avoid
+ expensive network reading.
+
+  If you wish to clean the host's apt cache (/var/cache/apt/archivees)
+ you may do so with apt-get, namely:
+
+  apt-get clean
+
+  If you set your cache directory to anything else, simply rm the
+ contents of the directory.
+
+
+=head1 ROLES
+
+  Currently there are some roles scripts included which work for
+ the Debian and Ubuntu distributions only. They are included
+ primarily as examples of the kind of things you could accomplish.
+
+  The supplied scripts are:
+
+=over 8
+
+=item builder
+Setup the new virtual images with commonly used packages for rebuilding
+Debian packages from their source.
+
+=item cfengine
+Install cfengine2 on the virtual image and copy the cfengine
+configuration from Dom0.
+
+=item editor
+Allows generalised editing of files for guests.
+
+This script works via a skeleton directory containing small sed files
+which will contain edits to be applied to an arbitrary tree of files
+upon the new domU.
+
+For example if we have the following sed file:
+
+  /etc/xen-tools/sed.d/etc/ssh/sshd_config.sed
+
+this will be applied to /etc/ssh/sshd_config upon the new guest *if*
+it exists.  If the file encoded in the name doesn't exist then it will
+be ignored.
+
+=item gdm
+Install an X11 server, using VNC and GDM
+
+=item minimal
+Customise the generated images to remove some packages.
+
+=item puppet
+Install puppet on the virtual image and copy the cfengine
+configuration from Dom0.
+
+=item tmpfs
+Sets up /tmp, /var/run and /var/lock as tmpfs in the DomU.
+
+=item udev
+Install udev in the DomU. Most distributions install udev by default
+nowadays, so this role is probably only interesting for legacy systems
+which need udev anyway.
+
+=item xdm
+Install an X11 server, using VNC and XDM
+
+=back
+
+  If you'd like to include your own role scripts you'll need to
+ create a file in /etc/xen-tools/role.d, and then specify the
+ name of that file with "--role=filename".  Additionally you
+ may pass options to your role-script with the --role-args
+ flag.
+
+  For example the script /etc/xen-tools/role.d/gdm would be used
+ by executing with "--role=gdm".
+
+  Role scripts are invoked with the directory containing the
+ installed system as their first argument, and anything passed
+ as a role-arg will be passed along as additional arguments.
+
+  NOTE: Role scripts are invoked before the config file generation.
+        If you need access to the config file from within your role,
+        use --finalrole.
+  NOTE: Multiple role scripts may be invoked if you separate their
+ names with commas.
+
+
+=head1 THE SKELETON DIRECTORY
+
+  Any files present in the directory /etc/xen-tools/skel will be copied
+ across to each new guest image.  The role of this directory is analogous
+ to the /etc/skel directory.
+
+  A typical use for this would be to copy a public key across to each
+ new system.  You could do this by running:
+
+=for example start
+
+    mkdir -p /etc/xen-tools/skel/root/.ssh
+    chmod -R 700 /etc/xen-tools/skel/root
+    cp /root/.ssh/id_rsa.pub /etc/xen-tools/skel/root/.ssh/authorized_keys2
+    chmod 644 /etc/xen-tools/skel/root/.ssh/authorized_keys2
+
+=for example cut
+
+
+=head1 AUTHORS
+
+ Steve Kemp, http://www.steve.org.uk/
+ Axel Beckert, http://noone.org/abe/
+ Dmitry Nedospasov, http://nedos.net/
+ Stéphane Jourdois
+
+
+=head1 LICENSE
+
+Copyright (c) 2005-2009 by Steve Kemp, (c) 2010-2013 by The Xen-Tools
+Development Team. All rights reserved.
+
+This module is free software;
+you can redistribute it and/or modify it under
+the same terms as Perl itself.
+The LICENSE file contains the full text of the license.
+
+=cut
+
+$SIG{INT} = \&clean_up;
+
+use strict;
+use English;
+use Digest::MD5 qw/ md5_hex /;
+use Env;
+use File::Path qw/ mkpath /;
+use File::Temp qw/ tempdir /;
+use File::Copy qw/ mv cp /;
+use File::Which;
+use Getopt::Long;
+use Pod::Usage;
+use Data::Dumper;
+use Data::Validate::URI qw/ is_uri /;
+use Data::Validate::IP qw/ is_ipv4 /;
+use Data::Validate::Domain qw/ is_hostname /;
+use Term::UI;
+use Term::ReadLine;
+use Xen::Tools::Common;
+
+
+#
+#  Configuration values read initially from the global configuration
+# file, then optionally overridden by the command line.
+#
+my %CONFIG;
+
+
+#
+#  Partition layout information values read from the partitions file,
+# or constructed automatically if no partitions file is specified.
+#
+my @PARTITIONS = undef;
+
+
+#
+#  Global variable containing the temporary file where our image
+# is mounted for installation purposes.
+#
+#  Why is this here?
+#
+#  Well it makes sure that the magic "END" section can unmount it
+# if there are errors.
+#
+#
+my $MOUNT_POINT = undef;
+
+
+#
+# Release number.
+#
+my $RELEASE = '4.5';
+
+
+#
+# Variable for ip addresses for output
+#
+my $IP_ADDRESSES = '';
+
+
+#
+# Variable for generated password
+#
+my $PASSWORD = '';
+
+
+#
+# Define some fallback password length
+#
+my $default_genpass_len = 23;
+
+
+# Minor helpers for reducing code duplication
+sub fail     ($) { fail_with_config($_[0], \%CONFIG); }
+sub logprint ($) { logprint_with_config($_[0], \%CONFIG); }
+
+#
+#  Setup default options.
+#
+setupDefaultOptions();
+
+
+#
+#  Read the global configuration file.
+#
+readConfigurationFile("/etc/xen-tools/xen-tools.conf", \%CONFIG);
+
+
+#
+#  Parse the command line arguments.
+#
+parseCommandLineArguments();
+
+
+#
+#  If we received an additional configuration file then read it.
+#
+if ( $CONFIG{ 'config' } )
+{
+    my $path = $CONFIG{ 'config' };
+
+    # If not fully-qualified then read from /etc/xen-tools.
+    if ( $path !~ /^[\/]/ )
+    {
+        $path = "/etc/xen-tools/" . $path;
+    }
+
+    # Read the file, if it exists.
+    if ( -e $path )
+    {
+        readConfigurationFile($path, \%CONFIG);
+    }
+    else
+    {
+        logprint( "The specified configuration file does not exist: '$path'\n".
+                  "Aborting\n\n" );
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+}
+
+
+#
+#  Process --debug
+#
+if ( $CONFIG{ 'debug' } )
+{
+    foreach my $key ( sort keys %CONFIG )
+    {
+        print $key;
+        print " : " . $CONFIG{ $key } if ( $CONFIG{ $key } );
+        print "\n";
+    }
+    $CONFIG{'FAIL'} = 1;
+    exit 127;
+}
+
+
+
+#
+#  Check the environment - after parsing arguments.
+#
+#  This is required so that the "--help" flag will work even if our support
+# scripts are not installed, etc.
+#
+checkSystem();
+
+
+#
+#  Ensure we're started by root at this point.  This is required
+# to make sure we can create new LVM volumes, mount loopback images, or
+# carry out other privileged actions.
+#
+testRootUser();
+
+
+#
+#  Check our arguments were sane and complete.
+#
+checkArguments();
+
+
+#
+#  Make sure we have a log directory
+#
+setupLogFile();
+
+
+#
+#  Check we have binaries installed which we expect to use.
+#
+checkBinariesPresent();
+
+
+#
+#  Setup default partitioning scheme if we don't have one.
+#
+#  NOTE:  This must be done before we call "showSummary".
+#
+if ( !$#PARTITIONS )
+{
+    populatePartitionsData()
+      if ( ( $CONFIG{ 'dir' } ) ||
+           ( $CONFIG{ 'evms' } ) ||
+           ( $CONFIG{ 'lvm' } ) );
+}
+
+
+#
+#  Show a summary of what we're going to do.
+#
+showSummary();
+
+
+
+#
+#  Create and format the images if we're using loopback filesystems.
+#
+if ( $CONFIG{ 'dir' } )
+{
+
+    #
+    #  Test to see if "loop" module is loaded.  This is probably
+    # not required, except for paranoia.
+    #
+    testLoopbackModule();
+
+    #
+    #  Create disk + swap images.
+    #
+    createLoopbackImages();
+}
+elsif ( $CONFIG{ 'lvm' } )
+{
+
+    #
+    #  Create our LVM partitions.
+    #
+    createLVMBits();
+}
+elsif ( $CONFIG{ 'evms' } )
+{
+
+    #
+    #  Create our EVMS partitions.
+    #
+    createEVMSBits();
+}
+elsif ( $CONFIG{ 'image-dev' } )
+{
+
+    #
+    #  Use physical disc
+    #
+    usePhysicalDevice();
+}
+else
+{
+
+    # Can't happen we didn't get an installation type.
+    logprint( "Error:  No recognised installation type.\n".
+              "Please specify a directory, lvm, or evms volume to use.\n" );
+    $CONFIG{'FAIL'} = 1;
+    exit 127;
+}
+
+
+#
+#  Mount the image.
+#
+mountImage();
+
+
+#
+#  Export our environment for the hooks/role script we might be
+# running later.
+#
+#  Do this unconditionally now, so that we're all setup to run
+# a hook even if we're not installing a system.
+#
+exportEnvironment();
+
+
+#
+#  If we're installing then do so, and test that it worked with
+# a binary name that is reasonably likely to exist under any
+# distribution of GNU/Linux.
+#
+if ( $CONFIG{ 'install' } )
+{
+
+    #
+    #  Install the system.
+    #
+    installSystem();
+
+    #
+    #  Did that work?
+    #
+    if ( !-x $MOUNT_POINT . "/bin/ls" )
+    {
+        logprint("System installation failed: /bin/ls missing.  Aborting.\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    #
+    #  Now customize the installation - setting up networking, etc.
+    #
+    if ( $CONFIG{ 'hooks' } )
+    {
+        runCustomisationHooks();
+    }
+}
+
+
+
+#
+#  Run any specified role scripts.
+#
+runRoleScripts( $CONFIG{ 'role' } );
+
+
+#
+#  Create the Xen configuration file.
+#
+runXenConfigCreation();
+
+
+#
+#  Run any specified role scripts.
+#
+runRoleScripts( $CONFIG{ 'finalrole' } );
+
+
+#
+#  Setup the password if the user wanted that.
+#
+setupRootPassword() if ( $CONFIG{ 'passwd' } or $CONFIG{ 'genpass' } or $CONFIG{ 'password' });
+
+
+#
+#  Report success.
+#
+logprint("All done\n");
+
+
+#
+#  Finished.
+#
+exit 0;
+
+
+
+=begin doc
+
+  Test that this system is fully setup for the new xen-create-image
+ script.
+
+  This means that the the companion scripts xt-* are present on the
+ host and executable.
+
+=end doc
+
+=cut
+
+sub checkSystem
+{
+    #
+    #  Make sure that we have Text::Template installed - this
+    # will be used by `xt-create-xen-config` and if that fails then
+    # running is pointless.
+    #
+    my $test = "use Text::Template";
+    eval($test);
+    if ( ($@) && ( !$CONFIG{ 'force' } ) )
+    {
+        print <<E_O_ERROR;
+
+  Aborting:  The Text::Template perl module isn\'t installed or available.
+
+  Specify '--force' to skip this check and continue regardless.
+
+E_O_ERROR
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+
+
+    #
+    #  Check that all the binaries have been installed properly
+    #
+    my @required =
+      qw(xt-customize-image xt-install-image xt-create-xen-config);
+
+    foreach my $bin (@required)
+    {
+        if ( !defined( which($bin) ) )
+        {
+            logprint( "The script '$bin' was not found.\nAborting\n\n" );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+    #
+    #  Make sure that xen-shell is installed if we've got an --admin
+    # flag specified
+    #
+    if ( $CONFIG{ 'admins' } )
+    {
+        my $shell = undef;
+        $shell = "/usr/bin/xen-login-shell"
+          if ( -x "/usr/bin/xen-login-shell" );
+        $shell = "/usr/local/bin/xen-login-shell"
+          if ( -x "/usr/bin/local/xen-login-shell" );
+
+        if ( !defined($shell) )
+        {
+            print <<EOF;
+
+  You've specified administrator accounts for use with the xen-shell,
+ however the xen-shell doesn't appear to be installed.
+
+  Aborting.
+EOF
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+}
+
+
+
+=begin doc
+
+  Setup the default options we'd expect into our global configuration hash.
+
+=end doc
+
+=cut
+
+sub setupDefaultOptions
+{
+    #
+    #  This flag is set upon failure, after images have been created.
+    #
+    #  It is used so that we can automatically "rollback" upon failure.
+    #
+    $CONFIG{'FAIL'} = 0;
+
+    #
+    # Paths and files.
+    #
+    $CONFIG{ 'dir' }     = '';
+    $CONFIG{ 'xm' }      = findXenToolstack();
+    $CONFIG{ 'kernel' }  = '';
+    $CONFIG{ 'modules' } = '';
+    $CONFIG{ 'initrd' }  = '';
+    $CONFIG{ 'serial_device' } = 'hvc0';
+    $CONFIG{ 'disk_device' }   = 'xvda';
+
+    #
+    # Sizing options.
+    #
+    $CONFIG{ 'memory' } = '96Mb';
+    $CONFIG{ 'size' }   = '2000Mb';
+    $CONFIG{ 'swap' }   = '128M';
+    $CONFIG{ 'cache' }  = 'yes';
+    $CONFIG{ 'cachedir' }  = '/var/cache/apt/archives/';
+    $CONFIG{ 'image' }  = 'sparse';
+    $CONFIG{ 'vcpus' } = '1';
+
+    #
+    # Misc. options.
+    #
+
+    # Default distribution is Debian Stable
+    $CONFIG{ 'dist' }          = 'stable';
+    $CONFIG{ 'mirror' }        = '';
+
+    # Initialize per distribution mirror defaults: Debian
+    foreach my $debdist (qw(squeeze wheezy jessie sid testing oldstable stable unstable)) {
+        $CONFIG{ 'mirror_'.$debdist } = 'http://http.debian.net/debian';
+    }
+    foreach my $debdist (qw(sarge etch lenny)) {
+        $CONFIG{ 'mirror_'.$debdist } = 'http://http.debian.net/debian-archive/debian';
+    }
+    # Initialize per distribution mirror defaults: Ubuntu
+    foreach my $ubuntudist (qw(lucid precise trusty utopic vivid)) {
+        $CONFIG{ 'mirror_'.$ubuntudist } = 'http://archive.ubuntu.com/ubuntu';
+    }
+    foreach my $ubuntudist (qw(dapper edgy feisty gutsy hardy intrepid jaunty karmic maverick natty oneiric quantal raring saucy)) {
+        $CONFIG{ 'mirror_'.$ubuntudist } = 'http://old-releases.ubuntu.com/ubuntu';
+    }
+    $CONFIG{ 'apt_proxy' }     = '';
+    $CONFIG{ 'arch' }          =
+        which('dpkg') ? `dpkg --print-architecture` : '';
+    chomp($CONFIG{ 'arch' });
+    $CONFIG{ 'fs' }            = 'ext3';
+    $CONFIG{ 'force' }         = 0;
+    $CONFIG{ 'install' }       = 1;
+    $CONFIG{ 'hooks' }         = 1;
+    $CONFIG{ 'partitions' }    = '';
+    $CONFIG{ 'pid' }           = 0;
+    $CONFIG{ 'template' }      = '';
+    $CONFIG{ 'roledir' }       = '/etc/xen-tools/role.d';
+    $CONFIG{ 'partitionsdir' } = '/etc/xen-tools/partitions.d';
+    $CONFIG{ 'ipfile' }        = '/etc/xen-tools/ips.txt';
+    $CONFIG{ 'output' }        = '/etc/xen';
+    $CONFIG{ 'extension' }     = '.cfg';
+
+    #
+    #  Installation method defaults to "debootstrap" using
+    #  "debootstrap" (instead of cdebootstrap).
+    #
+    $CONFIG{ 'install-method' } = 'debootstrap';
+    $CONFIG{ 'debootstrap-cmd' } = '';
+
+    #
+    #  Default values for passwords
+    #
+    $CONFIG{ 'genpass' }     = 1;
+    $CONFIG{ 'genpass_len' } = $default_genpass_len;
+    $CONFIG{ 'password' }    = undef;
+    $CONFIG{ 'hash_method' } = 'sha256';
+
+    #
+    #  The program to run to create a filesystem.
+    #
+    # NOTE: These commands end in a trailing slash.  The last parameter is
+    #       added as the loopback file/LVM volume to create the fs on....
+    #
+    # NOTE 2:  Each of these scripts will "force" the creation of a new
+    #         filesystem, even if it exists.  This script must detect
+    #         prior existance itself.
+    #
+    $CONFIG{ 'make_fs_ext2' }     = 'mkfs.ext2 -F';
+    $CONFIG{ 'make_fs_ext3' }     = 'mkfs.ext3 -F';
+    $CONFIG{ 'make_fs_ext4' }     = 'mkfs.ext4 -F';
+    $CONFIG{ 'make_fs_xfs' }      = 'mkfs.xfs -f';
+    $CONFIG{ 'make_fs_reiserfs' } = 'mkfs.reiserfs -f -q';
+    $CONFIG{ 'make_fs_btrfs' }    = 'mkfs.btrfs';
+
+    #
+    #  Flags to pass to "mount" to mount our image.
+    #
+    #  NOTE: Kinda redundent and may go away since '-t auto' should do
+    #        the right thing.
+    #
+    $CONFIG{ 'mount_fs_ext2' }     = '-t ext2';
+    $CONFIG{ 'mount_fs_ext3' }     = '-t ext3';
+    $CONFIG{ 'mount_fs_ext4' }     = '-t ext4';
+    $CONFIG{ 'mount_fs_xfs' }      = '-t xfs';
+    $CONFIG{ 'mount_fs_reiserfs' } = '-t reiserfs';
+    $CONFIG{ 'mount_fs_btrfs' }    = '-t btrfs';
+
+    #
+    #  Network options.
+    #
+    $CONFIG{ 'nameserver' } = '';
+
+}
+
+
+
+=begin doc
+
+  Validate options and do what is necessary with them.
+
+=end doc
+
+=cut
+
+sub checkOption
+{
+    my ($option, $value) = @_;
+
+    # Define argument types
+    my %types = (
+        integerWithSuffix => {
+            check   => qr/^[0-9.]+[GM]B?$/i,
+            message => "takes a suffixed (mb, MB, G, etc.) integer.\n",
+        },
+        distribution => {
+            check   => sub { -d "/usr/share/xen-tools/$_[0].d" },
+            message => "takes a distribution name " .
+                       "(see /usr/share/xen-tools for valid values).\n",
+        },
+        imageType => {
+            check   => qr/^sparse|full$/,
+            message => "must be 'sparse' or 'full'.\n",
+        },
+        existingFile => {
+            check   => sub { -e $_[0] },
+            message => "must be an existing file.\n",
+        },
+        existingDir => {
+            check   => sub { -d $_[0] },
+            message => "must be an existing directory.\n",
+        },
+        serialDev => {
+            check   => qr/^(?:\/dev\/)?(?:tty|[xh]vc)[0-9]+$/,
+            message => "must be a serial device (tty[0-9]+, hvc[0-9]+ or xvc[0-9]+).\n",
+        },
+        diskDev => {
+            check   => qr/^(?:\/dev\/)?(?:xvd|sd)[a-z]+$/,
+            message => "must be a disk device (xvd[a-z]+, sd[a-z]+).\n",
+        },
+        ipv4 => {
+            check   => sub { is_ipv4($_[0]) },
+            message => "must be valid IPv4.\n",
+        },
+        ipv4_or_auto => {
+            check   => sub { is_ipv4($_[0]) or $_[0] eq 'auto' },
+            message => "must be valid IPv4 or the keyword 'auto'.\n",
+        },
+        hostname => {
+            check   => sub { is_hostname($_[0]) },
+            message => "must be a valid hostname.\n",
+        },
+        supportedFs => {
+            check   => qr/^(ext[234]|xfs|reiserfs|btrfs)$/,
+            message => "must be a supported filesystem (ext2, ext3, ext4, xfs, reiserfs or btrfs).\n",
+        },
+        yesNo => {
+            check   => qr/^yes|no$/i,
+            message => "must be 'yes' or 'no'.\n",
+        },
+        zeroOne => {
+            check   => qr/^0|1$/i,
+            message => "must be '0' or '1'.\n",
+        },
+        configFile => {
+            check   => sub { -e $_[0] or -e "/etc/xen-tools/" . $_[0] },
+            message => "must be an existing file.\n",
+        },
+        filename => {
+            check   => qr/^[a-z0-9_.-]*$/,
+            message => "must be a valid filename.\n",
+        },
+        mac => {
+            check   => qr/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i,
+            message => "must be a valid ethernet mac address.\n",
+        },
+        hashMethod => {
+            check   => qr/^md5|sha256|sha512$/i,
+            message => "must be md5, sha256 or sha512.\n",
+        },
+        uri => {
+            check   => sub { is_uri($_[0]) },
+            message => "must be an URI including the protocol\n",
+        },
+    );
+
+    # Define what argument each option accepts.
+    # Arguments for options not listed here will always be accepted.
+    my %optionsTypes = (
+        size          => 'integerWithSuffix',
+        dist          => 'distribution',
+        swap          => 'integerWithSuffix',
+        image         => 'imageType',
+        memory        => 'integerWithSuffix',
+        maxmem        => 'integerWithSuffix',
+        kernel        => 'existingFile',
+        initrd        => 'existingFile',
+        modules       => 'existingDir',
+        serial_device => 'serialDev',
+        disk_device   => 'diskDev',
+        gateway       => 'ipv4',
+        netmask       => 'ipv4', # This is dubious.
+        broadcast     => 'ipv4',
+        hostname      => 'hostname',
+        nameserver    => 'ipv4',
+        pointopoint   => 'ipv4',
+        fs            => 'supportedFs',
+        cache         => 'yesNo',
+        cachedir      => 'existingDir',
+        config        => 'configFile',
+        install       => 'zeroOne',
+        hooks         => 'zeroOne',
+        roledir       => 'existingDir',
+        template      => 'configFile',
+        output        => 'existingDir',
+        extension     => 'filename',
+        mac           => 'mac',
+        ip            => 'ipv4_or_auto',
+        hash_method   => 'hashMethod',
+        apt_proxy     => 'uri',
+    );
+
+    # If given option does not exists in optionsTypes,
+    # we just copy it to %CONFIG.
+    unless ( exists $optionsTypes{ $option } ) {
+        $CONFIG{ $option } = $value;
+    } else { # we validate it before copying
+        my $type = $optionsTypes{ $option };
+
+        # First, check if type exists
+        fail("Type $type does not exist") unless exists $types{ $type };
+        my $check = $types{ $type }{ 'check' };
+
+        if (
+            (ref $check eq 'Regexp' and $value =~ $check) or
+            (ref $check eq 'CODE' and &$check( $value ) )
+        ) {
+            # Option did validate, copy it
+            if ( $option eq "ip" )
+            {
+              push @{ $CONFIG{ $option } }, $value;
+            } else {
+              $CONFIG{ $option } = $value;
+            }
+        } else {
+            # Option did _not_ validate
+            fail("ERROR: '$option' argument " . $types{ $type }{ 'message' });
+        }
+    }
+}
+
+=begin doc
+
+  Parse the command line arguments this script was given.
+
+=end doc
+
+=cut
+
+my $HELP       = 0;
+my $MANUAL     = 0;
+my $DUMPCONFIG = 0;
+my $VERSION    = 0;
+
+sub parseCommandLineArguments
+{
+    #
+    #  We record the installation method here because we want
+    # to ensure that we allow the method supplied upon the command line
+    # to overwrite the one we might have ready read from the configuration
+    # file.
+    #
+    my %install;
+    $install{ 'evms' }      = undef;
+    $install{ 'dir' }       = undef;
+    $install{ 'lvm' }       = undef;
+    $install{ 'image-dev' } = undef;
+
+    #
+    #  Parse options.
+    #
+    if (
+        !GetOptions(
+
+            # Mandatory
+            "dist=s", \&checkOption,
+
+            # Size options.
+            "size=s",   \&checkOption,
+            "swap=s",   \&checkOption,
+            "noswap",   \&checkOption,
+            "image=s",  \&checkOption,
+            "memory=s", \&checkOption,
+            "maxmem=s", \&checkOption,
+            "vcpus=i",  \&checkOption,
+
+            # Locations
+            "dir=s",       \$install{ 'dir' },
+            "evms=s",      \$install{ 'evms' },
+            "kernel=s",    \&checkOption,
+            "initrd=s",    \&checkOption,
+            "mirror=s",    \&checkOption,
+            "apt_proxy=s", \&checkOption,
+            "modules=s",   \&checkOption,
+            "lvm=s",       \$install{ 'lvm' },
+            "image-dev=s", \$install{ 'image-dev' },
+            "swap-dev=s",  \$install{ 'swap-dev' },
+            "serial_device=s", \&checkOption,
+            "disk_device=s", \&checkOption,
+
+            # Hosts options
+            "nohosts",     \$CONFIG{ 'nohosts' },
+            "copyhosts!",  \$CONFIG{ 'copyhosts' },
+            # Deprecated legacy options for backwards compatibility
+            "no-hosts",    \$CONFIG{ 'nohosts' },
+            "copy-hosts!", \$CONFIG{ 'copyhosts' },
+
+            # Networking options
+            "dhcp!",        \$CONFIG{ 'dhcp' },
+            "bridge=s",     \&checkOption,
+            "gateway=s",    \&checkOption,
+            "hostname=s",   \&checkOption,
+            "ip=s@",        \&checkOption,
+            "mac=s",        \&checkOption,
+            "netmask=s",    \&checkOption,
+            "broadcast=s",  \&checkOption,
+            "nameserver=s", \&checkOption,
+            "vifname=s",    \&checkOption,
+            "p2p=s",        \&checkOption,
+
+            # Exclusive
+            #
+            #  NOTE:  We set the local variable here, not the global.
+            #
+            "install-method=s",  \$CONFIG{ 'install-method' },
+            "install-source=s",  \$CONFIG{ 'install-source' },
+            "debootstrap-cmd=s", \$CONFIG{ 'debootstrap-cmd' },
+
+            # Misc. options
+            "accounts!",    \$CONFIG{ 'accounts' },
+            "admins=s",     \&checkOption,
+            "arch=s",       \&checkOption,
+            "fs=s",         \&checkOption,
+            "boot!",        \$CONFIG{ 'boot' },
+            "cache=s",      \&checkOption,
+            "cachedir=s",   \&checkOption,
+            "config=s",     \&checkOption,
+            "ide",          \$CONFIG{ 'ide' },
+            "scsi",         \$CONFIG{ 'scsi' },
+            "install=i",    \&checkOption,
+            "hooks=i",      \&checkOption,
+            "pygrub!",      \$CONFIG{ 'pygrub' },
+            "passwd!",      \$CONFIG{ 'passwd' },
+            "genpass=i",    \&checkOption,
+            "genpass-len=i", \&checkOption,
+            "genpass_len=i", \&checkOption,
+            "password=s",   \&checkOption,
+            "hash_method=s",\&checkOption,
+            "partitions=s", \&checkOption,
+            "role=s",       \&checkOption,
+            "role-args=s",  \&checkOption,
+            "finalrole=s",       \&checkOption,
+            "roledir=s",    \&checkOption,
+            "force!",       \$CONFIG{ 'force' },
+            "no-xen-ok",    sub { warn "Option --no-xen-ok is deprecated and ignored."; },
+            "keep!",        \$CONFIG{ 'keep' },
+            "template=s",   \&checkOption,
+            "output=s",     \&checkOption,
+            "extension:s",  \&checkOption,
+            "dontformat",   \&checkOption,
+
+            # Help options
+            "debug!",     \$CONFIG{ 'debug' },
+            "help",       \$HELP,
+            "manual",     \$MANUAL,
+            "dumpconfig", \$DUMPCONFIG,
+            "verbose!",   \$CONFIG{ 'verbose' },
+            "version",    \$VERSION
+        ) )
+    {
+        $CONFIG{'FAIL'} = 2;
+        exit;
+    }
+
+    if ( $HELP ) {
+        $CONFIG{'FAIL'}=-1;
+        pod2usage(1);
+    }
+
+    if ( $MANUAL ) {
+        $CONFIG{'FAIL'}=-1;
+        pod2usage( -verbose => 2 );
+    }
+
+    if ($VERSION)
+    {
+        logprint("xen-create-image release $RELEASE\n");
+        exit 0;
+    }
+
+
+    #
+    #  Now make ensure that the command line setting of '--lvm', '--evms'
+    # and '--dir=x' override anything specified in the configuration file.
+    #
+    if ( $install{ 'dir' } )
+    {
+        $CONFIG{ 'dir' }       = $install{ 'dir' };
+        $CONFIG{ 'evms' }      = undef;
+        $CONFIG{ 'lvm' }       = undef;
+        $CONFIG{ 'image-dev' } = undef;
+    }
+    if ( $install{ 'evms' } )
+    {
+        $CONFIG{ 'dir' }       = undef;
+        $CONFIG{ 'evms' }      = $install{ 'evms' };
+        $CONFIG{ 'lvm' }       = undef;
+        $CONFIG{ 'image-dev' } = undef;
+    }
+    if ( $install{ 'lvm' } )
+    {
+        $CONFIG{ 'dir' }       = undef;
+        $CONFIG{ 'evms' }      = undef;
+        $CONFIG{ 'lvm' }       = $install{ 'lvm' };
+        $CONFIG{ 'image-dev' } = undef;
+    }
+    if ( $install{ 'image-dev' } )
+    {
+        $CONFIG{ 'dir' }       = undef;
+        $CONFIG{ 'evms' }      = undef;
+        $CONFIG{ 'lvm' }       = undef;
+        $CONFIG{ 'image-dev' } = $install{ 'image-dev' };
+        $CONFIG{ 'size' }      = undef;
+        $CONFIG{ 'swap' }      = undef;
+
+        $CONFIG{ 'swap-dev' } = $install{ 'swap-dev' }
+          if ( defined( $install{ 'swap-dev' } ) );
+    }
+
+    if ($DUMPCONFIG)
+    {
+        print Dumper \%CONFIG;
+        exit 0;
+    }
+}
+
+
+
+=begin doc
+
+  Make sure this script is being run by a user with UID 0.
+
+=end doc
+
+=cut
+
+sub testRootUser
+{
+    if ( $EFFECTIVE_USER_ID != 0 )
+    {
+        my $err = <<E_O_ROOT;
+
+  In order to use this script you must be running with root privileges.
+
+  (This is necessary to mount the disk images which are created.)
+
+E_O_ROOT
+
+        logprint($err);
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+}
+
+
+
+=begin doc
+
+  Test that the command line arguments we were given make sense.
+
+  Here we make sure that mutually exclusive options are not selected
+ for the installation method, etc.
+
+  We also warn when some variables are not set.
+
+=end doc
+
+=cut
+
+sub checkArguments
+{
+
+    #
+    #  We require a distribution name.
+    #
+    if ( !defined( $CONFIG{ 'dist' } ) )
+    {
+        logprint("The '--dist' argument is mandatory\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    #
+    #  We require a hostname.
+    #
+    if ( !defined( $CONFIG{ 'hostname' } ) )
+    {
+        logprint("The '--hostname' argument is mandatory.\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    #
+    #  Lucid and probably all later Ubuntus, too, don't work without pygrub
+    #
+    if ( $CONFIG{ 'dist' } =~ /lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|trusty|utopic|vivid/ )
+    {
+        $CONFIG{ 'pygrub' } = 1;
+    }
+
+    #
+    #  Sarge amd64 needs different default mirror
+    #
+    if ( $CONFIG{ 'dist' } =~ /sarge/ and
+         $CONFIG{ 'arch' } =~ /amd64/ and
+         $CONFIG{ 'mirror_sarge' } =~ m(/debian-archive/debian/?$))
+    {
+        $CONFIG{ 'mirror_sarge' } =~
+            s(/debian-archive/debian/?)(/debian-archive/debian-amd64);
+    }
+
+    #
+    #  If no mirror is set, use the default per-distro mirror
+    #
+    my $distMirror = "mirror_" . $CONFIG{ 'dist' };
+    if ( !$CONFIG{ 'mirror' } and
+         $CONFIG{ $distMirror } and
+         length( $CONFIG{ $distMirror } ) )
+    {
+        $CONFIG{ 'mirror' } = $CONFIG{ $distMirror };
+    }
+
+    #
+    #  NOTE: FAKE!
+    #
+    if ( $CONFIG{ 'dist' } eq 'fedora-core4' )
+    {
+        $CONFIG{ 'dist' } = 'stentz';
+    }
+
+    #
+    #  If using LVM or EVMS then the images may not be sparse
+    #
+    $CONFIG{ 'image' } = "full"
+      if ( $CONFIG{ 'lvm' } ||
+           $CONFIG{ 'evms' } ||
+           $CONFIG{ 'image-dev' } );
+
+
+
+    #
+    #  Make sure that our installation method is specified.
+    #
+    my $valid = 0;
+    if ( defined( $CONFIG{ 'install-method' } ) )
+    {
+        foreach my $recognised (
+                        qw/ copy debootstrap cdebootstrap rinse rpmstrap tar /)
+        {
+            $valid = 1
+              if ( lc( $CONFIG{ 'install-method' } ) eq lc($recognised) );
+        }
+
+        #
+        #  If we have "cdebootstrap", set it to "debootstrap" and set
+        #  debootstrap-cmd to cdebootstrap instead.
+        #
+        if ( lc( $CONFIG{ 'install-method' } ) eq 'cdebootstrap' )
+        {
+            $CONFIG{ 'install-method' } = 'debootstrap';
+            $CONFIG{ 'debootstrap-cmd' } = 'cdebootstrap';
+        }
+
+        #
+        #  If we have "copy", or "tar" method then make sure we have a source.
+        #
+        if ( ( lc( $CONFIG{ 'install-method' } ) eq "copy" ) ||
+             ( lc( $CONFIG{ 'install-method' } ) eq "tar" ) )
+        {
+
+            # not defined.
+            $valid = 0 if ( !defined( $CONFIG{ 'install-source' } ) );
+        }
+    }
+    else
+    {
+        $valid = 1;
+    }
+
+    if ( !$valid )
+    {
+        print <<EOF;
+  Please specify the installation method to use, along with a source
+ if that is required.
+
+  For example:
+
+     --install-method=copy        --install-source=/some/path
+     --install-method=debootstrap
+     --install-method=rinse
+     --install-method=rpmstrap
+     --install-method=tar         --install-source=/some/file.tar
+
+EOF
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+
+    #
+    #  Make sure that any specified template file exists.
+    #
+    if ( defined( $CONFIG{ 'template' } ) &&
+         length( $CONFIG{ 'template' } ) )
+    {
+        if ( -e $CONFIG{ 'template' } )
+        {
+
+            # nop
+        }
+        elsif ( -e "/etc/xen-tools/$CONFIG{'template'}" )
+        {
+            $CONFIG{ 'template' } = "/etc/xen-tools/$CONFIG{'template'}";
+        }
+        else
+        {
+
+            # failed to find either by fully qualified path,
+            # or inside /etc/xen-tools.
+            logprint(
+                "The specified template file, $CONFIG{'template'}, does not exist.\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+
+    #
+    #  If we've got a role directory specified then it must exist.
+    #
+    if ( defined( $CONFIG{ 'roledir' } ) && length( $CONFIG{ 'roledir' } ) )
+    {
+        if ( !-d $CONFIG{ 'roledir' } )
+        {
+            logprint(
+                "The specified role directory '$CONFIG{'roledir'}' does not exist\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+
+    #
+    #  If we've got a partitions directory specified then it must exist.
+    #
+    if ( defined( $CONFIG{ 'partitionsdir' } ) &&
+         length( $CONFIG{ 'partitionsdir' } ) )
+    {
+        if ( !-d $CONFIG{ 'partitionsdir' } )
+        {
+            logprint(
+                "The specified partitions directory '$CONFIG{'partitionsdir'}' does not exist\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+
+    #
+    #  Make sure that any specified partitions file exists.
+    #
+    if ( ( defined( $CONFIG{ 'partitions' } ) ) &&
+         ( length( $CONFIG{ 'partitions' } ) ) )
+    {
+        if ( !( $CONFIG{ 'partitions' } =~ /\// ) )
+        {
+            $CONFIG{ 'partitions' } =
+              $CONFIG{ 'partitionsdir' } . '/' . $CONFIG{ 'partitions' };
+        }
+
+        if ( !-e $CONFIG{ 'partitions' } )
+        {
+            logprint(
+                "The specified partitions file, $CONFIG{'partitions'}, does not exist.\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        loadAndCheckPartitionsFile();
+    }
+
+    if ( $CONFIG{ 'swap-dev' } && $CONFIG{ 'noswap' } )
+    {
+        logprint("Please choose either swap-dev or noswap, not both!\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    if ( $CONFIG{ 'swap-dev' } && $CONFIG{ 'partitions' } )
+    {
+        logprint("Please choose either swap-dev or partitions, not both!\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    if ( $CONFIG{ 'image-dev' } )
+    {
+        if ( $CONFIG{ 'partitions' } )
+        {
+            logprint("Please choose either image-dev or partitions, not both!\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        if ( !$CONFIG{ 'swap-dev' } && !$CONFIG{ 'noswap' } )
+        {
+            logprint("Please choose swap-dev or noswap with image-dev!\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+
+    #
+    #  The user must choose either DHCP *or* Static IP.  not both
+    #
+    if ( $CONFIG{ 'dhcp' } && $CONFIG{ 'ip' } )
+    {
+
+        #
+        #  However we will allow the DHCP setting to override a *partially*
+        # specified IP address.
+        #
+        if ( $CONFIG{ 'ip' } =~ /^([0-9]+)\.([0-9]+)\.([0-9]+)\.*$/ )
+        {
+            delete $CONFIG{ 'ip' };
+        }
+        else
+        {
+            logprint("Please choose either DHCP or static usage, not both!\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+    #
+    #  The user must specify one or the other.
+    #
+    if ( ( !$CONFIG{ 'dhcp' } ) && ( !$CONFIG{ 'ip' } ) )
+    {
+        logprint("Please choose one of:\n");
+        logprint(" --dhcp\n");
+        logprint(" --ip xx.xx.xx.xx\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    #
+    #  If we're using static addresses warn if there are variables
+    # missing
+    #
+    if ( $CONFIG{ 'ip' } )
+    {
+        logprint("WARNING:  No gateway address specified!\n")
+          unless ( defined( $CONFIG{ 'gateway' } ) );
+
+        logprint("WARNING:  No netmask address specified!\n")
+          unless ( defined( $CONFIG{ 'netmask' } ) );
+    }
+
+    #
+    #  If we don't have a MAC address specified then generate one.
+    #
+    if ( !$CONFIG{ 'mac' } )
+    {
+        $CONFIG{ 'mac' } = generateMACAddress();
+    }
+
+    #
+    #  Make sure our output directory exists.
+    #
+    if ( !-d $CONFIG{ 'output' } )
+    {
+        print <<EOF;
+  The output directory for creating the xen configuration file within
+ doesn\'t exist:
+
+           $CONFIG{ 'output' }
+
+  Aborting.
+
+EOF
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    #
+    #  Already present?
+    #
+    my $cfg =
+      $CONFIG{ 'output' } . "/" . $CONFIG{ 'hostname' } .
+      $CONFIG{ 'extension' };
+    if ( -e $cfg )
+    {
+        if ( $CONFIG{ 'force' } )
+        {
+            $CONFIG{ 'verbose' } && print "Removing existing file: $cfg\n";
+            unlink($cfg);
+        }
+        else
+        {
+            print "Configuration file already exists; $cfg\n";
+            print "Aborting\n";
+            $CONFIG{'FAIL'} = 2;
+            exit 127;
+        }
+    }
+
+}
+
+
+
+=begin doc
+
+  Generate a 'random' MAC address.
+
+  The MAC address is constructed based upon :
+
+   1.  The standard Xen prefix.
+
+   2.  The hostname + IP address of the new guest.
+
+   3.  The distribution which is to be installed.
+
+=end doc
+
+=cut
+
+sub generateMACAddress
+{
+
+    #
+    #  Start with the xen prefix
+    #
+    my $mac = '00:16:3E';
+
+    #
+    #  Build up ( hostname + ip + dhcp + dist );
+    #
+    my $hash = '';
+    foreach my $key (qw/ hostname ip dhcp dist /)
+    {
+        if ( $CONFIG{ $key } ) {
+            if (ref($CONFIG{ $key }) eq 'ARRAY') {
+                $hash .= join(',',@{$CONFIG{ $key }});
+            } elsif (ref($CONFIG{ $key }) eq 'HASH') {
+                $hash .= join(',',values %{$CONFIG{ $key }});
+            } else {
+                $hash .= $CONFIG{ $key };
+            }
+        }
+    }
+
+    #
+    #  Generate an MD5 hash of this data.
+    #
+    $hash = md5_hex($hash);
+
+    #
+    #  Now build up a MAC address
+    #
+    while ( length($mac) < 17 )
+    {
+        $mac .= ":" . substr( $hash, 0, 2 );
+        $hash = substr( $hash, 2 );
+    }
+
+    return ( uc($mac) );
+}
+
+
+
+=begin doc
+
+  Make sure we have a log directory, and create an empty logfile
+ for this run.
+
+=end doc
+
+=cut
+
+sub setupLogFile
+{
+
+    mkdir( "/var/log/xen-tools", 0750 ) if ( !-d "/var/log/xen-tools" );
+
+    #
+    #  Move any existing for this run logfile.
+    #  (Hint: read from the end to understand how this works).
+    #
+    my $logname = "/var/log/xen-tools/$CONFIG{'hostname'}.log";
+    map {
+        (my $new = $_) =~ s/(?<=\.)\d+(?=\.log$)/$& + 1/e;
+        mv $_, $new; # increment file number
+    } sort {
+        $a =~ /\.(\d+)\.log$/;
+        my $aa = $1;
+        $b =~ /\.(\d+)\.log$/;
+        my $bb = $1;
+        $bb <=> $aa; # sort in reverse order
+    } grep /\.\d+\.log$/, # we only care in numeric filenames
+    glob( "/var/log/xen-tools/$CONFIG{'hostname'}.*.log" );
+
+    # Move the non-numeric filename also
+    mv $logname, "/var/log/xen-tools/$CONFIG{'hostname'}.0.log"
+        if -f $logname;
+
+    #
+    #  Now create an empty file.
+    #
+    open STUB, '>', $logname;
+    close STUB;
+
+    #
+    #  Make sure the logfile is 0640 - avoid leaking root passwords.
+    #
+    chmod( oct("0640"), $logname );
+}
+
+
+
+=begin doc
+
+  Check that we have some required binaries present.
+
+=end doc
+
+=cut
+
+sub checkBinariesPresent
+{
+
+    #
+    #  Files we demand are present in all cases.
+    #
+    my @required = qw ( mount mkswap );
+
+    foreach my $file (@required)
+    {
+        if ( !defined( which($file) ) )
+        {
+            logprint("The following binary is required to run this tool\n");
+            logprint("\t$file\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+    #
+    # Image type specific binaries
+    #
+    if ( defined( $CONFIG{ 'dir' } ) )
+    {
+
+        # loopback image
+        if ( !defined( which("dd") ) )
+        {
+            logprint("The following binary is required to run this tool\n");
+            logprint("\tdd\n");
+            logprint(
+                "(This only required for loopback images, which you've selected)\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+    elsif ( defined( $CONFIG{ 'evms' } ) )
+    {
+
+        #
+        # EVMS-specific binaries.
+        #
+        my @evms = qw ( evms echo );
+
+        foreach my $file (@evms)
+        {
+            if ( !defined( which($file) ) )
+            {
+                logprint("The following binary is required to run this tool\n");
+                logprint("\t$file\n");
+                logprint(
+                    "(This is only required for EVMS volumes, which you've selected)\n"
+                );
+                $CONFIG{'FAIL'} = 1;
+                exit 127;
+            }
+        }
+    }
+    elsif (defined( $CONFIG{ 'lvm' } ) )
+    {
+
+        # LVM-specific binaries.
+        my @lvm = qw ( lvcreate lvremove );
+
+        foreach my $file (@lvm)
+        {
+            if ( !defined( which($file) ) )
+            {
+                logprint("The following binary is required to run this tool\n");
+                logprint("\t$file\n");
+                logprint(
+                    "(This is only required for LVM volumes, which you've selected)\n"
+                );
+                $CONFIG{'FAIL'} = 1;
+                exit 127;
+            }
+        }
+    }
+}
+
+
+
+=begin doc
+
+  Loads a partitions file, checks the syntax and updates the configuration
+ variables with it
+
+=end doc
+
+=cut
+
+sub loadAndCheckPartitionsFile
+{
+    my %partitions;
+
+    #
+    #  Here we'll test for the required Perl module.
+    #
+    #  This allows us to:
+    #
+    #  a) Degrade usefully if the module isn't available.
+    #
+    #  b) Not require the module unless the user specifies a custom
+    #     partitioning scheme.
+    #
+    my $test = "use Config::IniFiles";
+    eval($test);
+    if ($@)
+    {
+        print <<EOF;
+
+ Aborting - To use the custom partitioning code you need to have the
+ following Perl module installed:
+
+   Config::IniFiles
+
+ On a Debian system you can get this with:
+
+   apt-get install libconfig-inifiles-perl
+
+ Otherwise fetch it from CPAN.
+EOF
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    tie %partitions, 'Config::IniFiles', ( -file => $CONFIG{ 'partitions' } );
+
+    @PARTITIONS = ();
+
+    my $name;
+    my $details;
+    my $foundroot = 0;
+    while ( ( $name, $details ) = each %partitions )
+    {
+        if ( !( $name =~ /^[a-zA-Z0-9-]+$/ ) )
+        {
+            logprint("The partition name $name contains invalid characters.\n");
+            logprint(
+                   "Only alphanumeric characters and the hyphen are allowed\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        if ( !( $details->{ 'size' } =~ /^[0-9.]+[GgMmKk]b?$/ ) )
+        {
+            logprint(
+                "The size $details->{'size'} of partition $name contains is not recognized.\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        if ( $details->{ 'type' } eq 'swap' )
+        {
+            push( @PARTITIONS,
+                  {  'name'       => $name,
+                     'size'       => $details->{ 'size' },
+                     'type'       => 'swap',
+                     'mountpoint' => '',
+                     'options'    => ''
+                  } );
+        }
+        else
+        {
+            if ( !$CONFIG{ 'make_fs_' . $details->{ 'type' } } )
+            {
+                logprint(
+                    "The type $details->{'type'} of partition $name is not recognized.\n"
+                );
+                $CONFIG{'FAIL'} = 1;
+                exit 127;
+            }
+
+            if ( !( $details->{ 'mountpoint' } =~ /^\/[^: \t\r\n]*$/ ) )
+            {
+                logprint(
+                    "The mount point $details->{'mountpoint'} of partition $name is invalid.\n"
+                );
+                $CONFIG{'FAIL'} = 1;
+                exit 127;
+            }
+
+            if ( !( $details->{ 'options' } =~ /^[^: \t\r\n]*$/ ) )
+            {
+                logprint(
+                    "The mount options $details->{'options'} of partition $name are invalid.\n"
+                );
+                $CONFIG{'FAIL'} = 1;
+                exit 127;
+            }
+
+            if ( !$details->{ 'options' } )
+            {
+                $details->{ 'options' } = 'defaults';
+            }
+
+            if ( $details->{ 'mountpoint' } eq '/' )
+            {
+                $foundroot = 1;
+            }
+
+            push( @PARTITIONS,
+                  {  'name'       => $name,
+                     'size'       => $details->{ 'size' },
+                     'type'       => $details->{ 'type' },
+                     'mountpoint' => $details->{ 'mountpoint' },
+                     'options'    => $details->{ 'options' } } );
+        }
+    }
+
+    if ( !$foundroot )
+    {
+        logprint("The root partition was not specified.\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    #
+    # Sort by length of the mountpoint.
+    #
+    #  This makes it easy to mount parent folders first
+    # (e.g. /var before /var/tmp)
+    #
+    @PARTITIONS =
+      sort {length $a->{ 'mountpoint' } <=> length $b->{ 'mountpoint' }}
+      @PARTITIONS;
+}
+
+
+
+=begin doc
+
+  Populates the partition information using the supplied configuration
+ arguments when not using the partitions file
+
+=end doc
+
+=cut
+
+sub populatePartitionsData
+{
+    @PARTITIONS = ();
+
+    #
+    #  [swap]
+    #
+    push( @PARTITIONS,
+          {  'name'       => 'swap',
+             'size'       => $CONFIG{ 'swap' },
+             'type'       => 'swap',
+             'mountpoint' => '',
+             'options'    => ''
+          } ) unless ( $CONFIG{ 'noswap' } );
+
+    #
+    #  read the default filesystem options from the configuration file.
+    #
+    my $options = $CONFIG{ $CONFIG{ 'fs' } . "_options" } || undef;
+
+    #
+    #  If there weren't any options in the configuration file then
+    # revert to our defaults.
+    #
+    if ( !defined($options) )
+    {
+
+        #
+        #  XFS has different default options.
+        #
+        $options = "errors=remount-ro";
+        $options = "defaults" if ( $CONFIG{ 'fs' } eq "xfs" );
+    }
+
+
+    #
+    #  [root]
+    #
+    push( @PARTITIONS,
+          {  'name'       => 'disk',
+             'size'       => $CONFIG{ 'size' },
+             'type'       => $CONFIG{ 'fs' },
+             'mountpoint' => '/',
+             'options'    => $options
+          } );
+
+}
+
+
+
+=begin doc
+
+  Converts the internal partitions array into a text representation
+ suitable for passing to other scripts.
+
+=end doc
+
+=cut
+
+sub exportPartitionsToConfig
+{
+    $CONFIG{ 'NUMPARTITIONS' } = $#PARTITIONS + 1;
+
+    my $i;
+    for ( $i = 0 ; $i < $CONFIG{ 'NUMPARTITIONS' } ; $i++ )
+    {
+        $CONFIG{ 'PARTITION' . ( $i + 1 ) } =
+          $PARTITIONS[$i]{ 'name' } . ':' . $PARTITIONS[$i]{ 'size' } . ':' .
+          $PARTITIONS[$i]{ 'type' } . ':' . $PARTITIONS[$i]{ 'mountpoint' } .
+          ':' . $PARTITIONS[$i]{ 'options' } . ':' .
+          $PARTITIONS[$i]{ 'imagetype' } . ':' . $PARTITIONS[$i]{ 'image' };
+    }
+}
+
+
+
+=begin doc
+
+  Show the user a summary of what is going to be created for them
+
+=end doc
+
+=cut
+
+sub showSummary
+{
+
+    #
+    # Show the user what to expect.
+    #
+    logprint("\nGeneral Information\n");
+    logprint("--------------------\n");
+    logprint("Hostname       :  $CONFIG{'hostname'}\n");
+    logprint("Distribution   :  $CONFIG{'dist'}\n");
+    logprint("Mirror         :  $CONFIG{'mirror'}\n");
+
+    if ( defined $CONFIG{ 'image-dev' } )
+    {
+        logprint("Root Device    :  $CONFIG{'image-dev'}\n");
+    }
+    if ( defined $CONFIG{ 'swap-dev' } )
+    {
+        logprint("Swap Device    :  $CONFIG{'swap-dev'}\n");
+    }
+
+    my $info;
+    my $partcount = 0;
+
+    logprint("Partitions     :  ");
+    foreach my $partition (@PARTITIONS)
+    {
+        next if ( !$partition );
+        $info = sprintf( '%-15s %-5s (%s)',
+                         ( $partition->{ 'type' } ne 'swap' ) ?
+                           $partition->{ 'mountpoint' } :
+                           'swap',
+                         $partition->{ 'size' },
+                         $partition->{ 'type' } );
+
+        if ( $partcount++ )
+        {
+            logprint("                  $info\n");
+        }
+        else
+        {
+            logprint("$info\n");
+        }
+    }
+
+    logprint("Image type     :  $CONFIG{'image'}\n");
+    logprint("Memory size    :  $CONFIG{'memory'}\n");
+
+    if ( defined( $CONFIG{ 'maxmem' } ) )
+    {
+        logprint("Max mem size   :  $CONFIG{'maxmem'}\n");
+    }
+
+    if ( exists(  $CONFIG{ 'pygrub' } ) &&
+         $CONFIG{ 'pygrub' } ) {
+        logprint("Bootloader     :  pygrub\n");
+    } else {
+        if ( defined( $CONFIG{ 'kernel' } ) && length( $CONFIG{ 'kernel' } ) )
+        {
+            logprint("Kernel path    :  $CONFIG{'kernel'}\n");
+        }
+
+        if ( defined( $CONFIG{ 'modules' } ) && length( $CONFIG{ 'modules' } ) )
+        {
+            logprint("Module path    :  $CONFIG{'modules'}\n");
+        }
+
+        if ( defined( $CONFIG{ 'initrd' } ) && length( $CONFIG{ 'initrd' } ) )
+        {
+            logprint("Initrd path    :  $CONFIG{'initrd'}\n");
+        }
+    }
+
+    logprint("\nNetworking Information\n");
+    logprint("----------------------\n");
+
+    #
+    # Show each IP address added.
+    #
+    # Note we only allow the first IP address to have a MAC address specified.
+    #
+    my $ips   = $CONFIG{ 'ip' };
+    my $mac   = $CONFIG{ 'mac' };
+    my $count = 1;
+
+    if ( defined $ips )
+    {
+
+        #
+        #  Scary magic.
+        #
+        if ( !UNIVERSAL::isa( $ips, "ARRAY" ) )
+        {
+
+            #
+            #  If we're reading the value of "ip = xxx" from the configuration
+            # file we'll have a single (scalar) value in $CONFIG{'ip'}.
+            #
+            #  BUT we actually assume this hash element contains a reference
+            # to an array - since that is what the command-line parsing code
+            # sets up for us.
+            #
+            #  So here we fake it - that was what the test above as for,
+            # if we didn't have an array already, then fake one up.
+            #
+            #  We reset the $ips reference to undef, then coerce it to be an
+            # (empty) array and push on our single IP.
+            #
+            #  It works.   Even if it's nasty, (or if it is a clever hack!)
+            #
+            $ips = undef;
+            push( @$ips, $CONFIG{ 'ip' } );
+            $CONFIG{ 'ip' } = $ips;
+        }
+    }
+
+
+    if ( defined $ips )
+    {
+
+        #
+        #  Print out each network address, and if there is a mac address
+        # associated with it then use it too.
+        #
+        foreach my $i (@$ips)
+        {
+            my $m = undef;
+
+            if ( ( $count == 1 ) && ( defined($mac) ) )
+            {
+                $m = $mac;
+            }
+
+
+            #
+            #  Here we have special handling for the case where
+            # IP addresses to be generated automatically.
+            #
+            #
+            if ( $i =~ /auto/i )
+            {
+                $CONFIG{ 'verbose' } &&
+                  logprint("Automatically determining an IP.");
+
+                $i = findIP($i);
+                if ( defined($i) )
+                {
+                    $CONFIG{ 'verbose' } && logprint("Claimed $i\n");
+                }
+                else
+                {
+                    print <<EOF;
+
+ERROR:  You specified the automatic choosing of an IP address and
+        none are left in $CONFIG{'ipfile'}.
+
+EOF
+                    $CONFIG{'FAIL'} = 1;
+                    exit 127;
+                }
+            }
+
+            #
+            #  Show the IP address.
+            #
+            logprint("IP Address $count   : $i");
+
+            #
+            #  Log the ip addresses for later output
+            #
+            $IP_ADDRESSES .= "$i ";
+
+            #  Option MAC address.
+            if ( defined($m) )
+            {
+                logprint(" [MAC: $m]");
+            }
+            logprint("\n");
+
+            $count += 1;
+        }
+    }
+
+    #
+    # mac address setting still works even for DHCP, but in that
+    # case only the first one works.
+    #
+    if ( $CONFIG{ 'dhcp' } )
+    {
+        if ( defined( $CONFIG{ 'mac' } ) )
+        {
+            logprint("IP Address     : DHCP [MAC: $CONFIG{'mac'}]\n");
+        }
+        else
+        {
+            logprint("IP Address     : DHCP\n");
+        }
+    }
+
+    $CONFIG{ 'netmask' } && logprint("Netmask        : $CONFIG{'netmask'}\n");
+    $CONFIG{ 'broadcast' } &&
+      logprint("Broadcast      : $CONFIG{'broadcast'}\n");
+    $CONFIG{ 'gateway' } && logprint("Gateway        : $CONFIG{'gateway'}\n");
+    $CONFIG{ 'nameserver' } && logprint("Nameserver     : $CONFIG{'nameserver'}\n");
+    $CONFIG{ 'p2p' }     && logprint("Point to Point : $CONFIG{'p2p'}\n");
+    print "\n";
+
+}
+
+
+
+=begin doc
+
+  Test that the user has the "loop" module loaded and present,
+ this is just a warning useful to newcomers.
+
+=end doc
+
+=cut
+
+sub testLoopbackModule
+{
+    if ( -e "/proc/modules" )
+    {
+        my $modules = `cat /proc/modules`;
+
+        if ( $modules !~ m/loop/ )
+        {
+            logprint("WARNING\n");
+            logprint("-------\n");
+            logprint(
+                 "Loopback module not loaded and you're using loopback images\n"
+            );
+            logprint("Run the following to load the module:\n\n");
+            logprint("modprobe loop max_loop=255\n\n");
+        }
+    }
+}
+
+
+
+=begin doc
+
+  Create the two images "swap.img" and "disk.img" in the directory
+ we've been given.
+
+  We also will call the filesystem creation routine to make sure we
+ have a valid filesystem.
+
+=end doc
+
+=cut
+
+sub createLoopbackImages
+{
+
+    #
+    #  Make sure we have the relevant output directory.
+    #
+    my $output = $CONFIG{ 'dir' } . "/domains/" . $CONFIG{ 'hostname' };
+
+    if ( !-d $output )
+    {
+
+        #
+        #  Catch errors with eval.
+        #
+        eval {mkpath( $output, 0, 0755 );};
+        if ($@)
+        {
+            fail("Cannot create directory tree $output - $@");
+        }
+    }
+
+
+    #
+    # Only proceed overwritting if we have --force specified.
+    #
+    if ( !$CONFIG{ 'force' } )
+    {
+        foreach my $partition (@PARTITIONS)
+        {
+            my $disk =
+              $CONFIG{ 'dir' } . '/domains/' . $CONFIG{ 'hostname' } . '/' .
+              $partition->{ 'name' } . '.img';
+
+            if ( -e $disk )
+            {
+                logprint("The partition image already exists.  Aborting.\n");
+                logprint(
+                    "Specify '--force' to overwrite, or remove the following file\n"
+                );
+                logprint( $disk . "\n" );
+                $CONFIG{'FAIL'} = 2;
+                exit 127;
+            }
+        }
+    }
+
+
+    foreach my $partition (@PARTITIONS)
+    {
+        my $disk =
+          $CONFIG{ 'dir' } . '/domains/' . $CONFIG{ 'hostname' } . '/' .
+          $partition->{ 'name' } . '.img';
+
+        #
+        # Save the image path to the partitions array
+        #
+        $partition->{ 'imagetype' } = 'file:';
+        $partition->{ 'image' }     = $disk;
+
+        #
+        # Modify the size to something reasonable
+        #
+        my $size = $partition->{ 'size' };
+
+        #
+        # Convert Gb -> Mb for the partition image size.
+        #
+        if ( $size =~ /^([0-9.]+)Gb*$/i )
+        {
+            $size = $1 * 1024 . "M";
+        }
+
+        #
+        #  Final adjustments to sizing.
+        #
+        $size =~ s/Mb*$/k/i;
+
+        #
+        #  Use dd to create the partition image.
+        #
+        logprint("\nCreating partition image: $disk\n");
+        my $image_cmd;
+        if ( $CONFIG{ 'image' } eq "sparse" )
+        {
+            $CONFIG{ 'verbose' } && logprint("Creating sparse image\n");
+            $image_cmd = "dd if=/dev/zero of=$disk bs=$size count=0 seek=1024";
+        }
+        else
+        {
+            $CONFIG{ 'verbose' } && logprint("Creating full-sized image\n");
+            $image_cmd = "dd if=/dev/zero of=$disk bs=$size count=1024";
+        }
+
+        # Set the umask so that the images are not world readable.
+        my $oldumask = umask;
+        umask(0077);
+
+        # run the image creation command
+        runCommand($image_cmd, \%CONFIG);
+        logprint("Done\n");
+
+        # Reset the umask to the previous value
+        umask($oldumask);
+
+        if ( !-e $disk )
+        {
+            logprint("The partition image creation failed to create $disk.\n");
+            logprint("aborting\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        #
+        #  Finally create the filesystem / swap
+        #
+        if ( $partition->{ 'type' } eq 'swap' )
+        {
+            createSwap($disk);
+        }
+        else
+        {
+            createFilesystem( $disk, $partition->{ 'type' } );
+        }
+    }
+}
+
+
+
+=begin doc
+
+  This function is used if you want your new system be installed to a
+ physical drive (e.g. partition /dev/hda4) or to an already existing
+ logical volume (e.g. /dev/root_vg/xen_root_lv).
+
+ Walter Reiner
+
+=end doc
+
+=cut
+
+sub usePhysicalDevice
+{
+    my $phys_img;
+    my $swap_img;
+
+    @PARTITIONS = ();
+
+    if ( defined $CONFIG{ 'swap-dev' } )
+    {
+        $swap_img = $CONFIG{ 'swap-dev' };
+
+        if ( !-e $swap_img )
+        {
+            logprint(
+                "The physical device or logical volume for swap-dev $swap_img doesn't exist.  Aborting.\n"
+            );
+            logprint(
+                "NOTE: Please provide full path to your physical device or logical volume.\n"
+            );
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        push( @PARTITIONS,
+              {  'name'       => 'swap',
+                 'size'       => '',
+                 'type'       => 'swap',
+                 'mountpoint' => '',
+                 'options'    => '',
+                 'imagetype'  => 'phy:',
+                 'image'      => $swap_img
+              } ) unless ( $CONFIG{ 'noswap' } );
+    }
+
+    my $options = 'errors=remount-ro';
+    if ( $CONFIG{ 'fs' } eq 'xfs' )
+    {
+        $options = 'defaults';
+    }
+
+    if ( defined $CONFIG{ 'image-dev' } )
+    {
+        $phys_img = $CONFIG{ 'image-dev' };
+
+        push( @PARTITIONS,
+              {  'name'       => 'disk',
+                 'size'       => '',
+                 'type'       => $CONFIG{ 'fs' },
+                 'mountpoint' => '/',
+                 'options'    => $options,
+                 'imagetype'  => 'phy:',
+                 'image'      => $phys_img
+              } );
+    }
+    else
+    {
+        logprint("No image-dev parameter given.  Aborting.\n");
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    createFilesystem( $phys_img, $CONFIG{ 'fs' } );
+    createSwap($swap_img) unless ( $CONFIG{ 'noswap' } );
+}
+
+
+
+=begin doc
+
+  This function is responsible for creating two new logical volumes within
+ a given LVM volume group.
+
+=end doc
+
+=cut
+
+sub createLVMBits
+{
+
+    #
+    #  Check whether the disk volume exists already, and if so abort
+    #  unless '--force' is specified.
+    #
+    foreach my $partition (@PARTITIONS)
+    {
+        my $disk     = $CONFIG{ 'hostname' } . '-' . $partition->{ 'name' };
+        my $lvm_disk = "/dev/$CONFIG{'lvm'}/$disk";
+
+        if ( -e $lvm_disk )
+        {
+
+            # Delete if forcing
+            if ( $CONFIG{ 'force' } )
+            {
+                unless ( xenRunning($CONFIG{ 'hostname' }, \%CONFIG)) {
+                    logprint(
+                        "Removing $lvm_disk - since we're forcing the install\n");
+                    runCommand("lvremove --force $lvm_disk", \%CONFIG);
+                } else {
+                    fail("ERROR: Xen guest $CONFIG{'hostname'} appears to be running.\nAborting.\n");
+                }
+            }
+            else
+            {
+                logprint("The LVM disk image already exists.  Aborting.\n");
+                logprint("Specify '--force' to delete and recreate\n");
+                $CONFIG{'FAIL'} = 2;
+                exit 127;
+            }
+        }
+    }
+
+    foreach my $partition (@PARTITIONS)
+    {
+        my $disk     = $CONFIG{ 'hostname' } . '-' . $partition->{ 'name' };
+        my $lvm_disk = "/dev/$CONFIG{'lvm'}/$disk";
+
+        #
+        # Save the image path to the partitions array
+        #
+        $partition->{ 'imagetype' } = 'phy:';
+        $partition->{ 'image' }     = $lvm_disk;
+
+        #
+        # The commands to create the volume.
+        #
+        my $disk_cmd =
+          "lvcreate $CONFIG{'lvm'} --yes -L $partition->{'size'} -n $disk";
+
+        #
+        # Create the volume
+        #
+        runCommand($disk_cmd, \%CONFIG);
+
+        #
+        # Make sure that worked.
+        #
+        if ( !-e $lvm_disk )
+        {
+            logprint(
+                "The LVM partition image creation failed to create $lvm_disk.\n"
+            );
+            logprint("aborting\n");
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+
+        #
+        #  Finally create the filesystem / swap
+        #
+        if ( $partition->{ 'type' } eq 'swap' )
+        {
+            createSwap($lvm_disk);
+        }
+        else
+        {
+            createFilesystem( $lvm_disk, $partition->{ 'type' } );
+        }
+    }
+
+}
+
+
+
+=begin doc
+
+  This function is responsible for creating two new logical volumes within
+ a given EVMS container group (which at the moment is either LVM or LVM2), but
+ should be compatible with any further extentions of evms.
+
+=end doc
+
+=cut
+
+sub createEVMSBits
+{
+
+    #
+    #  Check whether the disk volume exists already, and if so abort
+    #  unless '--force' is specified.  This is two steps with evms,
+    #  because two things need to be checked, the volume and the object.
+    #
+
+    foreach my $partition (@PARTITIONS)
+    {
+
+        # Check whether the EVMS volume already exists, abort unless '--force' is specified.
+        my $evms_volume_disk =
+          "/dev/evms/$CONFIG{'hostname'}-$partition->{'name'}";
+        if ( -e $evms_volume_disk )
+        {
+
+            # Delete if forcing
+            if ( $CONFIG{ 'force' } )
+            {
+                logprint(
+                    "Removing $evms_volume_disk - since we're forcing the install\n"
+                );
+                runCommand("echo Delete : $evms_volume_disk | evms", \%CONFIG);
+            }
+            else
+            {
+                logprint(
+                    "The EVMS volume $evms_volume_disk already exists.  Aborting.\n"
+                );
+                logprint("Specify '--force' to delete and recreate\n");
+                $CONFIG{'FAIL'} = 2;
+                exit 127;
+            }
+        }
+
+        #
+        # Check whether the EVMS object exists, abort unless '--force'
+        # is specified.
+        #
+        # Note: $evms_object_disk is not specified directly as a device
+        #
+        my $evms_object_disk =
+          "$CONFIG{'evms'}/$CONFIG{'hostname'}-$partition->{'name'}";
+        if ( -e $evms_object_disk )
+        {
+
+            # Delete if forcing
+            if ( $CONFIG{ 'force' } )
+            {
+                logprint(
+                    "Removing $evms_object_disk - since we're forcing the install\n"
+                );
+                runCommand("echo Delete : $evms_object_disk | evms", \%CONFIG);
+            }
+            else
+            {
+                logprint(
+                    "The EVMS object $evms_object_disk already exists.  Aborting.\n"
+                );
+                logprint("Specify '--force' to delete and recreate\n");
+                $CONFIG{'FAIL'} = 2;
+                exit 127;
+            }
+        }
+    }
+
+    foreach my $partition (@PARTITIONS)
+    {
+        my $disk      = $CONFIG{ 'hostname' } . '-' . $partition->{ 'name' };
+        my $evms_disk = "/dev/evms/$disk";
+
+        #
+        # Save the image path to the partitions array
+        #
+        $partition->{ 'imagetype' } = 'phy:';
+        $partition->{ 'image' }     = $evms_disk;
+
+        #
+        #  Modify the size to something reasonable
+        #
+        my $size = $partition->{ 'size' };
+
+        #
+        # Convert Gb -> Mb for the partition image size.
+        #
+        if ( $size =~ /^([0-9.]+)Gb*$/i )
+        {
+            $size = $1 * 1024 . "M";
+        }
+
+        #
+        #  Final adjustments to sizing.
+        #
+        $size =~ s/Mb*$/k/i;
+
+        #
+        # The commands to create the objects and volumes.
+        #
+        # create the object
+        #
+        my $disk_cmd_object =
+          "echo allocate : $CONFIG{'evms'}/Freespace, size=$CONFIG{'size'}, name=$disk | evms";
+
+        #
+        # these will be piped to evms, but gotta check it first
+        #
+        my $disk_cmd_volume =
+          "echo create : Volume, $CONFIG{'evms'}/$disk, name=$disk | evms";
+
+        #
+        # Create the volumes
+        #
+        runCommand($disk_cmd_object, \%CONFIG);
+        runCommand($disk_cmd_volume, \%CONFIG);
+
+        #
+        #  Initialise the partition with the relevant filesystem.
+        #
+        if ( $partition->{ 'type' } eq 'swap' )
+        {
+            createSwap($disk_cmd_volume);
+        }
+        else
+        {
+            createFilesystem( $disk_cmd_volume, $partition->{ 'type' } );
+        }
+    }
+
+}
+
+
+
+=begin doc
+
+  Format the given image in the users choice of filesystem.
+
+=end doc
+
+=cut
+
+sub createFilesystem
+{
+    my ( $image, $fs ) = (@_);
+
+    #
+    #  We have the filesystem the user wanted, make sure that the
+    # binary exists.
+    #
+    my $command = $CONFIG{ "make_fs_" . $fs };
+
+    #
+    #  Split the command into "binary" + "args".  Make sure that
+    # the binary exists and is executable.
+    #
+    my ($binary, $args) = split(/ /, $command, 2);
+
+    if ( !defined( which($binary) ) )
+    {
+        logprint(
+            "The binary '$binary' required to create the filesystem $fs is missing\n"
+        );
+        $CONFIG{'FAIL'} = 1;
+        exit 127;
+    }
+
+    unless ( $CONFIG{ 'dontformat' } ) {
+        #
+        #  OK we have the command and the filesystem.  Create it.
+        #
+        logprint("\nCreating $fs filesystem on $image\n");
+
+        $command .= " " . $image;
+
+        runCommand($command, \%CONFIG);
+        logprint("Done\n");
+    }
+}
+
+
+
+=begin doc
+
+  Create the swap filesystem on the given device.
+
+=end doc
+
+=cut
+
+sub createSwap
+{
+    my ($path) = (@_);
+
+    logprint("\nCreating swap on $path\n");
+
+    runCommand("mkswap $path", \%CONFIG);
+    logprint("Done\n");
+}
+
+
+=begin doc
+
+  Mount the loopback disk image into a temporary directory.
+
+  Alternatively mount the relevant LVM volume instead.
+
+=end doc
+
+=cut
+
+sub mountImage
+{
+
+    #
+    #  Create a temporary mount-point to use for the image/volume.
+    #
+    $MOUNT_POINT = tempdir( CLEANUP => 1 );
+
+    foreach my $partition (sort { length($a->{'mountpoint'}) <=> length($b->{'mountpoint'}) } @PARTITIONS)
+    {
+        if ( $partition->{ 'type' } ne 'swap' )
+        {
+            my $image      = $partition->{ 'image' };
+            my $mountpoint = $MOUNT_POINT . $partition->{ 'mountpoint' };
+
+            mkpath( $mountpoint, 0, 0755 );
+
+            #
+            #  Lookup the correct arguments to pass to mount.
+            #
+            my $mount_cmd;
+            my $mount_type = $CONFIG{ 'mount_fs_' . $partition->{ 'type' } };
+
+            #
+            #  LVM partition
+            #
+            if ( $CONFIG{ 'lvm' } )
+            {
+                $mount_cmd = "mount $mount_type $image $mountpoint";
+            }
+            elsif ( $CONFIG{ 'evms' } )
+            {
+                $mount_cmd = "mount $mount_type $image $mountpoint";
+            }
+            elsif ( $CONFIG{ 'image-dev' } )
+            {
+                $mount_cmd = "mount $mount_type $image $mountpoint";
+            }
+            else
+            {
+                $mount_cmd = "mount $mount_type -o loop $image $mountpoint";
+            }
+            runCommand($mount_cmd, \%CONFIG);
+        }
+    }
+
+}
+
+
+
+=begin doc
+
+  Install the system, by invoking the xt-install-image script.
+
+  The script will be given the appropriate arguments from our environment.
+
+=end doc
+
+=cut
+
+sub installSystem
+{
+
+    #
+    #
+    #  Basic command
+    #
+    my $cmd =
+      "xt-install-image --hostname=$CONFIG{'hostname'} --location=$MOUNT_POINT --dist=$CONFIG{'dist'} --install-method=$CONFIG{'install-method'}";
+
+    #
+    #  Add on the install source if required.
+    #
+    $cmd .= " --install-source=$CONFIG{'install-source'}"
+      if ( defined( $CONFIG{ 'install-source' } ) );
+
+    #
+    #  Do we have a per-image configuration file?
+    #
+    $cmd .= " --config=$CONFIG{'config'}" if ( defined( $CONFIG{ 'config' } ) );
+
+    #
+    #  Add on the mirror, if defined
+    #
+    $cmd .= " --mirror=$CONFIG{'mirror'}" if ( defined( $CONFIG{ 'mirror' } ) );
+
+    #
+    #  Add on the current cache setting
+    #
+    $cmd .= " --cache=$CONFIG{'cache'}" if length( $CONFIG{ 'cache' } );
+
+    #
+    #  Add on the current cachedir setting
+    #
+    $cmd .= " --cachedir=$CONFIG{'cachedir'}" if length( $CONFIG{ 'cachedir' } );
+
+    #
+    #  Propagate --verbose
+    #
+    if ( $CONFIG{ 'verbose' } )
+    {
+        $cmd .= " --verbose";
+    }
+
+    #
+    #  Propagate --arch
+    #
+    if ( $CONFIG{ 'arch' } )
+    {
+        $cmd .= " --arch=$CONFIG{'arch'}";
+    }
+
+
+    #
+    #  Propagate --debootstrap-cmd if install-method is debootstrap
+    #
+    if ( $CONFIG{ 'install-method' } eq 'debootstrap' and
+         $CONFIG{ 'debootstrap-cmd' } )
+    {
+        $cmd .= " --debootstrap-cmd=$CONFIG{'debootstrap-cmd'}";
+    }
+
+
+    #
+    #  Propagate --apt_proxy
+    #
+    if ( $CONFIG{ 'apt_proxy' } )
+    {
+        $cmd .= " --apt_proxy=$CONFIG{'apt_proxy'}";
+    }
+
+
+    #
+    #  Show the user what they are installing
+    #
+    logprint("Installation method: $CONFIG{'install-method'}\n");
+
+    #
+    #  And where from, if relevant.
+    #
+    if ( ( lc( $CONFIG{ 'install-method' } ) eq "copy" ) ||
+         ( lc( $CONFIG{ 'install-method' } ) eq "tar" ) )
+    {
+        logprint("(Source: $CONFIG{'install-source'})\n");
+    }
+
+
+    #
+    #  Run the command.
+    #
+    runCommand($cmd, \%CONFIG);
+    logprint("Done\n");
+}
+
+
+
+=begin doc
+
+  Export our configuratione variables as a series of environmental
+ variables.
+
+  This is required so that our hook and role scripts can easily
+ read the settings without access to the command line / configuration
+ file we were invoked with.
+
+=end doc
+
+=cut
+
+sub exportEnvironment
+{
+
+    #
+    # Export partitions array to configuration
+    #
+    exportPartitionsToConfig();
+
+    foreach my $key ( keys %CONFIG )
+    {
+        if ( defined( $CONFIG{ $key } ) )
+        {
+            my $envkey = $key;
+            $envkey =~ s/-/_/g;
+            $ENV{ $envkey } = $CONFIG{ $key };
+        }
+    }
+}
+
+
+
+=begin doc
+
+  Run the xt-customise-system script to customize our fresh installation.
+
+  Before we do this we must pass all the relevant options into our
+ environment and mount /proc and /dev/pts.
+
+=end doc
+
+=cut
+
+sub runCustomisationHooks
+{
+
+    #
+    #  Before running any scripts we'll mount /proc in the guest.
+    #
+    #  1.  Make sure there is a directory.
+    mkdir( $MOUNT_POINT . "/proc", 0755 ) if ( !-d $MOUNT_POINT . "/proc" );
+
+    #  2.  Mount
+    runCommand("mount -o bind /proc $MOUNT_POINT/proc", \%CONFIG);
+
+    #
+    #  Before running any scripts we'll mount /dev/pts in the guest, too.
+    #
+    #  1.  Make sure there is a directory.
+    mkdir( $MOUNT_POINT . "/dev", 0755 ) if ( !-d $MOUNT_POINT . "/dev" );
+    mkdir( $MOUNT_POINT . "/dev/pts", 0755 )
+        if ( !-d $MOUNT_POINT . "/dev/pts" );
+
+    #  2.  Mount
+    runCommand("mount -t devpts devpts $MOUNT_POINT/dev/pts", \%CONFIG);
+
+    #
+    # Now update the environment for each defined IP address.
+    # these are handled specially since we use arrays.
+    #
+    # Remove the value we set above.
+    delete $ENV{ 'ip' };
+
+    #
+    # Setup a seperate ip$count value for each IP address.
+    #
+    my $ips   = $CONFIG{ 'ip' };
+    my $count = 1;
+
+    foreach my $i (@$ips)
+    {
+        $ENV{ 'ip' . $count } = $i;
+        $count += 1;
+    }
+
+    $ENV{ 'ip_count' } = ( $count - 1 );
+
+
+    #
+    #  Now show the environment the children get
+    #
+    if ( $CONFIG{ 'verbose' } )
+    {
+        logprint("Customization Script Environment:\n");
+        logprint("---------------------------------\n");
+        foreach my $key ( sort keys %ENV )
+        {
+            logprint( "\t'" . $key . "' = '" . $ENV{ $key } . "'\n" );
+        }
+    }
+
+    #
+    #  Copy dom0's resolv.conf to domU
+    #
+    mv("$MOUNT_POINT/etc/resolv.conf", "$MOUNT_POINT/etc/resolv.conf.old") if -f "$MOUNT_POINT/etc/resolv.conf";
+    cp("/etc/resolv.conf", "$MOUNT_POINT/etc/resolv.conf");
+
+    #
+    #  Actually run the appropriate hooks
+    #
+    my $customize =
+      "xt-customize-image --dist=$CONFIG{'dist'} --location=$MOUNT_POINT";
+    if ( $CONFIG{ 'verbose' } )
+    {
+        $customize .= " --verbose";
+    }
+    logprint("\nRunning hooks\n");
+    runCommand($customize, \%CONFIG);
+    logprint("Done\n");
+
+    #
+    #  Restore domU's resolv.conf if needed
+    #
+    if (-f "$MOUNT_POINT/etc/resolv.conf") {
+        mv("$MOUNT_POINT/etc/resolv.conf.old", "$MOUNT_POINT/etc/resolv.conf");
+    } else {
+        unlink "$MOUNT_POINT/etc/resolv.conf";
+    }
+}
+
+
+
+=begin doc
+
+  Find a useable IP address from the file /etc/xen-tools/ips.txt.
+
+=end doc
+
+=cut
+
+sub findIP
+{
+
+    # Abort if we don't have the IP file.
+    return undef if ( !-e $CONFIG{ 'ipfile' } );
+
+    #
+    # Open and read the file.
+    #
+    open( RANGE, "<", $CONFIG{ 'ipfile' } ) or
+      fail("Failed to read $CONFIG{'ipfile'} - $!");
+    my @lines = <RANGE>;
+    my @updated;
+    close(RANGE);
+
+    #
+    #  Find an unclaimed line.
+    #
+    my $ip = undef;
+    foreach my $line (@lines)
+    {
+
+        # skip empty lines.
+        next if ( !defined($line) );
+        next if ( !length($line) );
+        chomp($line);
+
+        # find an IP.
+        if ( ( !defined($ip) ) && ( $line =~ /^([0-9\.]+)$/ ) )
+        {
+            $ip   = $line;
+            $line = $ip . ": used";
+        }
+
+        push( @updated, $line );
+    }
+
+    #
+    #  Now write out the new entries.
+    #
+    open( RANGE, ">", $CONFIG{ 'ipfile' } ) or
+      fail("Failed to write to $CONFIG{'ipfile'} - $!");
+    print RANGE join( "\n", @updated );
+    close(RANGE);
+
+    #
+    #  Sanity check - handle the old case where the format of the file
+    # was different.
+    #
+    if ( defined($ip) )
+    {
+        my @tmp = split( /\./, $ip );
+        if ( scalar(@tmp) < 3 )
+        {
+            print <<EOF;
+ERROR
+-----
+
+  The $CONFIG{'ipfile'} file must contain full IP addresses, for example:
+
+192.168.1.100
+192.168.1.101
+192.168.1.102
+..
+192.168.1.200
+
+  Aborting.  Please update the file or specify an IP address manually.
+
+EOF
+            $CONFIG{'FAIL'} = 1;
+            exit 127;
+        }
+    }
+
+    #
+    #  Return
+    #
+    return ($ip);
+}
+
+
+
+=begin doc
+
+  Run *all* specified role scripts.
+
+=end doc
+
+=cut
+
+sub runRoleScripts
+{
+    my ($scripts) = (@_);
+
+    if ( !defined($scripts) )
+    {
+        logprint("\nNo role scripts were specified.  Skipping\n");
+        return;
+    }
+
+    #
+    #  OK we have at least one script specified.  Split it up
+    # and try it out.
+    #
+    foreach my $name ( split( /,/, $scripts ) )
+    {
+
+        # ignore empty ones.
+        next if ( ( !defined($name) ) || ( !length($name) ) );
+
+        # strip leading + triling space.
+        $name =~ s/^\s+//;
+        $name =~ s/\s+$//;
+
+        # run the script
+        runRoleScript($name);
+    }
+}
+
+
+
+=begin doc
+
+  Run the specified role script.
+
+=end doc
+
+=cut
+
+sub runRoleScript
+{
+    my ($role) = (@_);
+
+    my $roleDir = $CONFIG{ 'roledir' };
+
+    #
+    #  Role-script arguments are optional.  If present prepare to
+    # append.
+    #
+    my $args = '';
+    $args = " " . $CONFIG{ 'role-args' } if ( $CONFIG{ 'role-args' } );
+
+    #
+    #  The complete path to the role script
+    #
+    my $file = $role;
+    $file = $roleDir . "/" . $file unless $file =~ /\//;
+
+    if ( -x $file )
+    {
+        logprint("\nRole: $role\n");
+        logprint("\tFile: $file\n");
+        logprint("\tArgs: $args\n") if ( length($args) );
+    }
+    else
+    {
+        logprint("\nRole script not executable : $file for role '$role'\n");
+        logprint("Ignoring\n");
+        return;
+    }
+
+
+    #
+    #  Our environment is already setup because of the call to
+    # runCustomisationHooks.
+    #
+    #  We just need to run the script with two arguments:
+    #
+    #   - The mountpoint to the new system.
+    #   - Any, optional, supplied arguments.
+    #
+    # NOTE:  Space added to $args as prefix ..
+    #
+    runCommand( $file . " " . $MOUNT_POINT . $args, \%CONFIG );
+
+    logprint("Role script completed.\n");
+}
+
+
+
+=begin doc
+
+  Create the Xen configuration file.
+
+  Note that we don't need to do any setup for the environment since
+ we did this already before running the hook scripts.
+
+=end doc
+
+=cut
+
+sub runXenConfigCreation
+{
+
+    #
+    #  Configuration file we'll create
+    #
+    my $dir  = $CONFIG{ 'output' };
+    my $ext  = $CONFIG{ 'extension' };
+    my $file = $dir . "/" . $CONFIG{ 'hostname' } . $ext;
+
+
+    #
+    #  Abort if it exists.
+    #
+    if ( -e $file )
+    {
+        unless ( $CONFIG{ 'force' } )
+        {
+            logprint("The Xen configuration file $file exists\n");
+            logprint("Specify --force to force overwriting it.\n");
+            logprint("Aborting\n");
+            # FAIL = 2 will keep existing config file
+            $CONFIG{'FAIL'} = 2;
+            exit 127;
+        }
+    }
+
+    #
+    #  Create the config.
+    #
+    my $command = "xt-create-xen-config --output=$dir --extension=$ext";
+
+    #
+    #  Add the template if specified
+    #
+    if ( ( defined( $CONFIG{ 'template' } ) ) &&
+         ( -e $CONFIG{ 'template' } ) )
+    {
+        $command .= " --template=" . $CONFIG{ 'template' };
+    }
+
+    #
+    #  Add the admins, if any.
+    #
+    if ( defined( $CONFIG{ 'admins' } ) )
+    {
+        $command .= " --admins=$CONFIG{'admins'}";
+    }
+
+    #
+    #  Make sure the template gets a list of all IPs
+    #
+    $ENV{ 'ips' } = $IP_ADDRESSES;
+
+
+    logprint("\nCreating Xen configuration file\n");
+    runCommand($command, \%CONFIG);
+    logprint("Done\n");
+}
+
+
+
+=begin doc
+
+  chroot() into the new system and setup the password.
+
+=end doc
+
+=cut
+
+sub setupRootPassword
+{
+    logprint("Setting up root password\n");
+
+    if ( $CONFIG{ 'passwd' } )
+    {
+        if ( -x $MOUNT_POINT . "/usr/bin/passwd" )
+        {
+            my $tryagain = 1;
+            my $term = Term::ReadLine->new('Password change failed');
+            while ($tryagain) {
+                my $rc = system("chroot $MOUNT_POINT /usr/bin/passwd");
+                if ($rc >> 8) {
+                    $tryagain = $term->ask_yn(
+                        prompt => 'Do you want to try to change the password again??',
+                        default => 'y',
+                    );
+                } else {
+                    $tryagain=0;
+                }
+            }
+        }
+        else
+        {
+            logprint("'passwd' command not found in the new install.\n");
+        }
+    }
+    else
+    {
+        logprint("Generating a password for the new guest.\n");
+        #
+        #  Replace the password in the /etc/shadow file
+        #
+        my $shadow_path = $MOUNT_POINT . '/etc/shadow';
+        if ( -e $shadow_path )
+        {
+            #
+            #  Generate a password, salt and use that to generating a hash
+            #
+            if ( defined( $CONFIG{ 'password' } ) )
+            {
+                $PASSWORD = $CONFIG { 'password' };
+            }
+            elsif ( $CONFIG{ 'genpass' } )
+            {
+                $PASSWORD = generatePassword( $CONFIG{ 'genpass_len' } );
+            }
+            else
+            {
+                fail("oops... neither passwd nor password nor genpass are set, should not happen!");
+            }
+
+            my $salt = generatePassword(8);
+
+            my $hash_method;
+            if ($CONFIG{ 'hash_method' } eq 'md5')
+            {
+                $hash_method = '$1$';
+            }
+            elsif ($CONFIG{ 'hash_method' } eq 'sha256')
+            {
+                $hash_method = '$5$';
+            }
+            elsif ($CONFIG{ 'hash_method' } eq 'sha512')
+            {
+                $hash_method = '$6$';
+            }
+            else
+            {
+                fail("oops... unknown hashing method, should not happen!");
+            }
+
+            my $hash = crypt($PASSWORD, $hash_method . $salt);
+
+            #
+            #  Copy the file to ensure the original retains the correct
+            #  permissions set by the System
+            #
+            my $tmp_shadow_path = "$shadow_path.tmp";
+            cp("$shadow_path","$tmp_shadow_path");
+            open(TMP, "<", $tmp_shadow_path) or fail($!);
+            open(SHADOW, ">", $shadow_path) or fail($!);
+            my $line;
+            while(defined($line = <TMP>))
+            {
+                $line =~ s#^root:[^:]*:#root:$hash:#;
+                print SHADOW $line;
+            }
+
+            #
+            #  Close the files and delete the temporary file
+            #
+            close(SHADOW);
+            close(TMP);
+            unlink($tmp_shadow_path);
+        }
+        else
+        {
+            logprint("Failed to find /etc/passwd in the install.\n");
+        }
+    }
+}
+
+=begin doc
+
+  create a random "string"
+
+=end doc
+
+=cut
+
+sub generatePassword {
+    my $length = $_[0];
+    unless ($length and $length > 0) {
+        warn "generatePassword: No (sane) password length given. Using $default_genpass_len instead.";
+        $length = $default_genpass_len;
+    }
+    my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    my $password = '';
+    while (length($password) < $length) {
+        $password .= substr($possible, (int(rand(length($possible)))), 1);
+    }
+    return $password;
+}
+
+
+=begin doc
+
+  Unmount any mount-points which are below the given path.
+
+  The mountpoints are chosen by looking at /proc/mounts which
+ might not be portable, but works for me.  (tm).
+
+=end doc
+
+=cut
+
+sub unMountImage
+{
+    my ($point, $fail_ok) = (@_);
+
+    #
+    #  First we unmount /proc and /dev/pts in the guest install.
+    #
+    runCommand("umount $point/proc", \%CONFIG, $fail_ok);
+    #runCommand("umount $point/dev/pts", \%CONFIG, $fail_ok);
+
+    #
+    #  Open /proc/mount and get a list of currently mounted paths
+    # which begin with our mount point.
+    #
+    my @points;
+
+    open( MOUNTED, "<", "/proc/mounts" ) or
+      fail("Failed to open mount list");
+    foreach my $line (<MOUNTED>)
+    {
+
+        #
+        #  Split into the device and mountpoint.
+        #
+        my ( $device, $path ) = split( / /, $line );
+
+        if ( $path =~ /\Q$point\E/ )
+        {
+            push @points, $path;
+        }
+    }
+    close(MOUNTED);
+
+    #
+    #  Now we have a list of mounts.  We need to move the
+    # longest first, we can do this by sorting and reversing.
+    #
+    #  (ie. We unmount the children, then the parent.)
+    #
+    @points = sort @points;
+    @points = reverse @points;
+
+    foreach my $path (@points)
+    {
+        $CONFIG{ 'verbose' } && print "Unmounting : $path\n";
+        runCommand("umount $path", \%CONFIG, $fail_ok);
+    }
+
+    $MOUNT_POINT = undef;
+}
+
+
+=begin doc
+
+  If we still have the temporary image mounted then make sure
+ it is unmounted before we terminate.
+
+=end doc
+
+=cut
+
+sub clean_up () {
+    if ( defined($MOUNT_POINT) )
+    {
+        unMountImage($MOUNT_POINT, 1);
+    }
+}
+
+END
+{
+    # Capture exit code
+    my $exitcode = $?;
+
+    exit $exitcode if $VERSION || $HELP || $MANUAL || $DUMPCONFIG;
+
+    my $host_rsa_key = '';
+    #
+    #  Unmount the image if it is still mounted.
+    #
+    if ( defined($MOUNT_POINT) )
+    {
+        #
+        #  Before we unmount get the host's RSA key
+        #
+        my $key_path .= $MOUNT_POINT;
+        $key_path .= '/etc/ssh/ssh_host_rsa_key.pub';
+        if ( `ssh-keygen -lf $key_path` =~ /^(\S+)\s+(\S+)/ ) {
+            $host_rsa_key = $2;
+        } else {
+            $host_rsa_key = "N/A";
+        }
+        unMountImage($MOUNT_POINT, $CONFIG{'FAIL'});
+    }
+
+    #
+    #  If we're supposed to start the new instance do so - note here we
+    # have to unmount the image first.
+    #
+    if ( $CONFIG{ 'boot' } and !$CONFIG{'FAIL'} )
+    {
+        #
+        #  If there is an /etc/xen/auto directory then link in the
+        # domain so that it will automatically restart, if it isn't
+        # already present.
+        #
+        #  (Will be present if this is overwriting a previous image,
+        # for example.)
+        #
+        if ( -d "/etc/xen/auto" )
+        {
+            my $cfg =
+                $CONFIG{ 'output' } . "/" . $CONFIG{ 'hostname' } .
+                $CONFIG{ 'extension' };
+
+            if ( !-e $cfg )
+            {
+                logprint("Creating auto-start symlink to: $cfg\n");
+
+                my $link = "ln -s $cfg /etc/xen/auto/";
+                runCommand($link, \%CONFIG);
+            }
+        }
+
+        #
+        #
+        #  Start the image
+        #
+
+        # Config file.
+        my $cfg =
+            $CONFIG{ 'output' } . "/" . $CONFIG{ 'hostname' } .
+            $CONFIG{ 'extension' };
+
+        # Start the DomU
+        runCommand("$CONFIG{'xm'} create $cfg", \%CONFIG);
+
+        logprint("Started new Xen guest: $CONFIG{'hostname'} [$cfg]\n");
+    }
+
+    #
+    #  Here we print out the status message when finishing.
+    #
+    #  NOTE:  We use the $CONFIG{'pid'} here to control whether the
+    # message is displayed - since this avoids it from being displayed
+    # twice when --boot is used.
+    #
+    if ( ( defined( $CONFIG{ 'hostname' } ) ) &&
+         ( -e "/var/log/xen-tools/$CONFIG{'hostname'}.log" ) &&
+         ( !$CONFIG{ 'pid' } ) )
+    {
+        print "\n\nLogfile produced at:\n";
+        print "\t /var/log/xen-tools/$CONFIG{'hostname'}.log\n";
+    }
+
+    #
+    #  Did we fail?  If so then we should remove the broken installation,
+    # unless "--keep" was specified.
+    #
+    #  If we didn't fail, then we assume we succeeded, print a summary
+    #
+    #  $CONFIG{'FAIL'} = 0  -  Success
+    #  $CONFIG{'FAIL'} = 1  -  Failed to install, delete the image
+    #  $CONFIG{'FAIL'} = 2  -  Files exist, either .cfg or lvm... etc
+    if ( $CONFIG{'FAIL'} == 1 && ( !$CONFIG{ 'keep' } ) )
+    {
+
+        #
+        #  Run the command
+        #
+        $CONFIG{ 'verbose' } &&
+          logprint("Removing failed install: $CONFIG{'hostname'}\n");
+
+        if ($CONFIG{ 'hostname' }) {
+            my $option = '';
+            if ($CONFIG{ 'lvm' }) {
+                $option = "--lvm=$CONFIG{'lvm'}"
+            } elsif ($CONFIG{ 'evms' }) {
+                $option = "--evms=$CONFIG{'evms'}"
+            } elsif ($CONFIG{ 'dir' }) {
+                $option = "--dir=$CONFIG{'dir'}"
+            }
+
+            if ($option) {
+                runCommand("xen-delete-image $option --hostname=$CONFIG{'hostname'}", \%CONFIG);
+            } else {
+                die "Assertion that either --dir, --lvm, or --dir are given".
+                    " failed.\nThis is probably a bug, please report it.";
+            }
+        }
+    } elsif ( $CONFIG{'FAIL'} == 0 ) {
+        #
+        #  Assume success
+        #
+        logprint("\nInstallation Summary\n");
+        logprint("---------------------\n");
+        logprint("Hostname        :  $CONFIG{'hostname'}\n");
+        logprint("Distribution    :  $CONFIG{'dist'}\n");
+        logprint("MAC Address     :  $CONFIG{'mac'}\n");
+        logprint("IP Address(es)  :  ");
+        if ( $CONFIG{ 'dhcp' } ) {
+           logprint("dynamic");
+        } elsif( $CONFIG{ 'ip' } ) {
+           logprint( $IP_ADDRESSES );
+        }
+        logprint("\n");
+        logprint("RSA Fingerprint :  $host_rsa_key\n");
+        logprint("Root Password   :  ");
+        if ( $PASSWORD ) {
+            logprint("$PASSWORD\n");
+        } else {
+            logprint ("N/A\n");
+        }
+        logprint("\n");
+    }
+
+    exit $exitcode;
+}

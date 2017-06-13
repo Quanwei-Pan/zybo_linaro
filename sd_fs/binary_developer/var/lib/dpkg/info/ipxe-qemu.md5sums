@@ -1,0 +1,15 @@
+b8bcb93c3bb8add4dae3eceab31ca76f  usr/lib/ipxe/qemu/efi-e1000.rom
+7f3387b7ca1a8876f7e51f9575394fc6  usr/lib/ipxe/qemu/efi-eepro100.rom
+b2d72009f384a9f581fe81ee3333749e  usr/lib/ipxe/qemu/efi-ne2k_pci.rom
+2b1a9fcfb6d85160a3be9d22a598d514  usr/lib/ipxe/qemu/efi-pcnet.rom
+3d7d6add7a64e9a7a63cf297503b8155  usr/lib/ipxe/qemu/efi-rtl8139.rom
+702eda75eaecdda23d03b3305e0904af  usr/lib/ipxe/qemu/efi-virtio.rom
+ec7084466d6c8d6683c2d143932a796b  usr/lib/ipxe/qemu/pxe-e1000.rom
+037948f313c66f6504a20fd6883bae56  usr/lib/ipxe/qemu/pxe-eepro100.rom
+4444b6d6d6fec997897ced1a2d5882e7  usr/lib/ipxe/qemu/pxe-ne2k_isa.rom
+f030cb77b25d7f8f9d65291a2e3606dc  usr/lib/ipxe/qemu/pxe-ne2k_pci.rom
+faacbeebfbdef31a0696c8e03bfb23fc  usr/lib/ipxe/qemu/pxe-pcnet.rom
+7532c173c1ba279f6ef2908bd7bd9d66  usr/lib/ipxe/qemu/pxe-rtl8139.rom
+26324c3f88a430f101d8e2a242c0b0fa  usr/lib/ipxe/qemu/pxe-virtio.rom
+8dc2515861e04a7287d18452a8d99043  usr/share/doc/ipxe-qemu/changelog.Debian.gz
+4c0aadf7953740e0ec34425b9a06cb20  usr/share/doc/ipxe-qemu/copyright

@@ -1,0 +1,2926 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
+
+<book id="oprofile-guide">
+<bookinfo>
+	<title>OProfile manual</title>
+
+	<authorgroup>
+		<author>
+			<firstname>John</firstname>
+			<surname>Levon</surname>
+			<affiliation>
+				<address><email>levon@movementarian.org</email></address>
+			</affiliation>
+		</author>
+	</authorgroup>
+
+	<copyright>
+		<year>2000-2004</year>
+		<holder>Victoria University of Manchester, John Levon and others</holder>
+	</copyright>
+</bookinfo>
+
+<toc></toc>
+
+<chapter id="introduction">
+<title>Introduction</title>
+
+<para>
+This manual applies to OProfile version <oprofileversion />.
+OProfile is a set of performance monitoring tools for Linux 2.6 and higher systems, available on a number of architectures.
+OProfile provides the following features:
+<itemizedlist>
+<listitem>Profiler</listitem>
+<listitem>Post-processing tools for analyzing profile data</listitem>
+<listitem>Event counter</listitem>
+</itemizedlist>
+</para>
+<para>
+OProfile is capable of monitoring native hardware events occurring in all parts of a running system, from the kernel
+(including modules and interrupt handlers) to shared libraries
+to binaries. OProfile can collect event information for the whole system in the background with very little overhead. These
+features make it ideal for monitoring entire systems to determine bottle necks in real-world systems.
+</para>
+
+<para>
+Many CPUs provide "performance counters", hardware registers that can count "events"; for example,
+cache misses, or CPU cycles. OProfile can collect profiles of code based on the number of these occurring events:
+repeatedly, every time a certain (configurable) number of events has occurred, the PC value is recorded.
+This information is aggregated into profiles for each binary image.  Alternatively, OProfile's event counting
+tool can collect simple raw event counts.</para>
+<sect1 id="legacy_mode">
+<title>OProfile legacy profiling mode</title>
+Prior to release 1.0, OProfile included a profiling tool consisting of the <command>opcontrol</command> shell script, the <command>oprofiled</command> daemon,
+and the attendant oprofile kernel driver. This "legacy profiler" was deprecated in release 0.9.8 with the introduction of
+the <command>operf</command> profiling tool (see <xref linkend="perf_events"/>). Some older architectures/platforms
+do not support the use of <command>operf</command>. For those cases, oprofile users should install release 0.9.9, which is the
+last release to include the legacy profiler.
+</sect1>
+<sect1 id="perf_events">
+<title>OProfile perf_events profiling mode</title>
+<para>
+OProfile has the ability to profile a single process or every currently running process (i.e., system-wide)
+via the <command>operf</command> program. <command>operf</command> interfaces with the
+kernel to collect samples via the Linux Kernel Performance Events Subsystem (hereafter
+referred to as "perf_events").  OProfile can co-exist with other tools on your system that
+may also be using the perf_events kernel subsystem.
+</para>
+<para>
+Using <command>operf</command> to profile a single
+process can be done as a normal user; however, root authority <emphasis>is</emphasis> required to run
+<command>operf</command> in system-wide profiling mode.
+<note>
+<title>Note</title>
+Some older processor models are not supported by the underlying perf_events kernel and, thus, are not supported by <command>operf</command>.
+If you receive the message
+<screen>  Your kernel's Performance Events Subsystem does not support your processor type</screen>
+when attempting to use <command>operf</command>, install OProfile 0.9.9 and try profiling with <command>opcontrol</command>
+to see if your processor type may be supported by OProfile's legacy mode.
+</note>
+</para>
+</sect1>
+
+<sect1 id="event_counting">
+<title>OProfile event counting mode</title>
+OProfile provides the <command>ocount</command> tool for
+collecting raw event counts on a per-application, per-process, per-cpu, or system-wide basis.  Unlike the
+profiling tools, post-processing of the data collected is not necessary -- the data is displayed in the
+output of <command>ocount</command>.  A common use case for event counting tools is when performance analysts
+want to determine the CPI (cycles per instruction) for an application. High CPI implies possible stalls,
+and many architectures provide events that give detailed information about the different types of stalls.
+The events provided are architecture-specific, so we refer the reader to the hardware manuals available for
+the processor type being used.
+</sect1>
+
+
+<sect1 id="applications">
+<title>Applications of OProfile</title>
+<para>
+OProfile is useful in a number of situations. You might want to use OProfile when you :
+</para>
+<itemizedlist>
+<listitem><para>need low overhead</para></listitem>
+<listitem><para>cannot use highly intrusive profiling methods</para></listitem>
+<listitem><para>need to profile interrupt handlers</para></listitem>
+<listitem><para>need to profile an application and its shared libraries</para></listitem>
+<listitem><para>need to profile dynamically compiled code of supported virtual machines (see <xref linkend="jitsupport"/>)</para></listitem>
+<listitem><para>need to capture the performance behaviour of entire system</para></listitem>
+<listitem><para>want to examine hardware effects such as cache misses</para></listitem>
+<listitem><para>want detailed source annotation</para></listitem>
+<listitem><para>want instruction-level profiles</para></listitem>
+<listitem><para>want call-graph profiles</para></listitem>
+</itemizedlist>
+<para>
+OProfile is not a panacea. OProfile might not be a complete solution when you :
+</para>
+<itemizedlist>
+<listitem><para>require call graph profiles on platforms other than x86, ARM, and PowerPC</para></listitem>
+<listitem><para>require 100% instruction-accurate profiles</para></listitem>
+<listitem><para>need function call counts or an interstitial profiling API</para></listitem>
+<listitem><para>cannot tolerate any disturbance to the system whatsoever</para></listitem>
+<listitem><para>need to profile interpreted or dynamically compiled code of non-supported virtual machines</para></listitem>
+</itemizedlist>
+<sect2 id="jitsupport">
+<title>Support for dynamically compiled (JIT) code</title>
+<para>
+OProfile provides a framework to support JITed code ("just-in-time (JIT) compiled code").
+A development library is provided to allow developers
+to add support for any VM (virtual machine) that produces dynamically compiled code (see the <emphasis>OProfile JIT agent
+developer guide</emphasis>).
+In addition, built-in support is included for the following:</para>
+<itemizedlist><listitem>JVMTI agent library for Java (1.5 and higher)</listitem>
+<listitem>JVMPI agent library for Java (1.5 and lower)</listitem>
+</itemizedlist>
+These libraries make it possible for OProfile to attribute profile samples
+to Java methods. Without a VM-specific agent library, OProfile will typically report
+samples from JITed code similar to the following example:
+<screen>     anon: &lt;tgid&gt;&lt;address range&gt;</screen>
+For information on how to use OProfile's JIT support, see <xref linkend="setup-jit"/>.
+</sect2>
+
+<sect2 id="guestsupport">
+<title>No support for virtual machine guests</title>
+<para>
+OProfile currently does not support event-based profiling (i.e, using hardware events like cache misses,
+branch mispredicts) on virtual machine guests running under systems such as VMware.
+(Note: KVM guests <emphasis>are</emphasis> supported.)  The list of
+supported events displayed by ophelp is based on CPU type and does
+not take into account whether the running system is a guest system or real system.  To use
+OProfile on such guest systems, you must use the legacy profiler's timer mode (see <xref linkend="timer" />).
+</para>
+</sect2>
+
+
+</sect1>
+
+<sect1 id="requirements">
+<title>System requirements</title>
+
+<variablelist>
+	<varlistentry>
+		<term>Linux kernel</term>
+		<listitem><para>
+			Release 2.6.31 or higher
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Supported architectures</term>
+		<listitem><para>
+			AMD, ARM, Intel, PowerPC, Tile, MIPS
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Required libraries</term>
+		<listitem><para>
+			These libraries are required : <filename>popt</filename>, <filename>bfd</filename>,
+			<filename>liberty</filename> (debian users: libiberty is provided in binutils-dev package), <filename>dl</filename>,
+			plus the standard C++ libraries.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Required kernel headers</term>
+		<listitem><para>
+			Either the kernel-headers package must be installed or use the <code>--with-kernel</code>
+			configure option.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Required user account</term>
+		<listitem><para>
+			For secure processing of sample data from JIT virtual machines (e.g., Java),
+			the special user account "oprofile" must exist on the system.  The 'configure'
+			and 'make install' operations will print warning messages if this
+			account is not found.  If you intend to profile JITed code, you must create
+			a group account named 'oprofile' and then create the 'oprofile' user account,
+			setting the default group to 'oprofile'.  A runtime error message is printed to
+			the oprofile log when processing JIT samples if this special user
+			account cannot be found.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+ 		<term><acronym>ELF</acronym></term>
+		<listitem><para>
+			Probably not too strenuous a requirement, but older <acronym>A.OUT</acronym> binaries/libraries are not supported.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>K&amp;R coding style</term>
+		<listitem><para>
+			OK, so it's not really a requirement, but I wish it was...
+		</para></listitem>
+	</varlistentry>
+</variablelist>
+
+
+</sect1>
+
+<sect1 id="resources">
+<title>Internet resources</title>
+
+<variablelist>
+	<varlistentry>
+		<term>Web page</term>
+		<listitem><para>
+			There is a web page (which you may be reading now) at
+			<ulink url="http://oprofile.sf.net/">http://oprofile.sf.net/</ulink>.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Download</term>
+		<listitem><para>
+			You can download a source tarball or check out code from
+			the code repository at the sourceforge page,
+			<ulink url="http://sf.net/projects/oprofile/">http://sf.net/projects/oprofile/</ulink>.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Mailing list</term>
+		<listitem><para>
+			There is a low-traffic OProfile-specific mailing list, details at
+			<ulink url="http://sf.net/mail/?group_id=16191">http://sf.net/mail/?group_id=16191</ulink>.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>Bug tracker</term>
+		<listitem><para>
+			There is a bug tracker for OProfile at SourceForge,
+			<ulink url="http://sourceforge.net/p/oprofile/bugs/">http://sourceforge.net/p/oprofile/bugs/</ulink>.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>IRC channel</term>
+		<listitem><para>
+			Several OProfile developers and users sometimes hang out on channel <command>#oprofile</command>
+			on the <ulink url="http://oftc.net">OFTC</ulink> network. 
+		</para></listitem>
+	</varlistentry>
+</variablelist>
+
+</sect1>
+
+<sect1 id="install">
+<title>Installation</title>
+
+<para>
+First you need to build OProfile and install it. <command>./configure</command>, <command>make</command>, <command>make install</command>
+is often all you need, but note these arguments to <command>./configure</command> :
+</para>
+<variablelist>
+	<varlistentry>
+		<term><option>--with-java</option></term>
+		<listitem>
+			<para>
+			Use this option if you need to profile Java applications.  Also, see
+			<xref linkend="requirements"/>, "Required user account".  This option
+			is used to specify the location of the Java Development Kit (JDK)
+			source tree you wish to use. This is necessary to get the interface description
+			of the JVMPI (or JVMTI) interface to compile the JIT support code successfully.
+			</para>
+			<note>
+				<para>
+				The Java Runtime Environment (JRE) does not include the development
+				files that are required to compile the JIT support code, so the full
+				JDK must be installed in order to use this option.
+				</para>
+			</note>
+			<para>
+			By default, the Oprofile JIT support libraries will be installed in
+			<filename>&lt;oprof_install_dir&gt;/lib/oprofile</filename>.  To build
+			and install OProfile and the JIT support libraries as 64-bit, you can
+			do something like the following:
+			<screen>
+			# CFLAGS="-m64" CXXFLAGS="-m64" ./configure \
+			--with-java={my_jdk_installdir} \
+			--libdir=/usr/local/lib64
+			</screen>
+			</para>
+			<note>
+				<para>
+				If you encounter errors building 64-bit, you should
+				install libtool 1.5.26 or later since that release of
+				libtool fixes known problems for certain platforms.
+				If you install libtool into a non-standard location,
+				you'll need to edit the invocation of 'aclocal' in
+				OProfile's autogen.sh as follows (assume an install
+				location of /usr/local):
+				</para>
+				<para>
+				<code>aclocal -I m4 -I /usr/local/share/aclocal</code>
+				</para>
+			</note> 
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--with-qt-dir/includes/libraries</option></term>
+		<listitem><para>
+			Specify the location of Qt headers and libraries. It defaults to searching in
+			<constant>$QTDIR</constant> if these are not specified.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry id="disable-werror">
+		<term><option>--disable-werror</option></term>
+		<listitem><para>
+			Development versions of OProfile build by
+			default with <option>-Werror</option>. This option turns
+			<option>-Werror</option> off.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry id="disable-optimization">
+		<term><option>--disable-optimization</option></term>
+		<listitem><para>
+			Disable the <option>-O2</option> compiler flag
+			(useful if you discover an OProfile bug and want to give a useful
+			back-trace etc.)
+		</para></listitem>
+	</varlistentry>
+	<varlistentry id="with-kernel">
+		<term><option>--with-kernel</option></term>
+		<listitem><para>
+			This option is used to specify the location of the kernel headers <filename>include</filename> directory
+			needed to build the perf_events-enabled <command>operf</command> program. By default, the OProfile
+			build system expects to find this directory under <filename>/usr</filename>. Use this option if your
+			kernel headers are in a non-standard location or if building in a cross-compile enviroment or in a
+			situation where the host system does not support perf_events but you wish to build binaries for a
+			target system that does support perf_events.
+		</para></listitem>
+	</varlistentry>
+</variablelist>
+<para>
+It is recommended that if you have a
+uniprocessor machine, you enable the local APIC / IO_APIC support for
+your kernel (this is automatically enabled for SMP kernels). With many BIOS (kernel &gt;= 2.6.9 and UP kernel)
+it's not sufficient to enable the local APIC -- you must also turn it on explicitly at boot
+time by providing the "lapic" option to the kernel.
+If you use the NMI watchdog, be aware that the watchdog is disabled when profiling starts
+and not re-enabled until the profiling is stopped.
+</para>
+
+</sect1>
+
+<sect1 id="uninstall">
+<title>Uninstalling OProfile</title>
+<para>
+You must have the source tree available to uninstall OProfile; a <command>make uninstall</command> will
+remove all installed files except your configuration file in the directory <filename>~/.oprofile</filename>.
+</para>
+</sect1>
+
+</chapter>
+
+<chapter id="overview"> 
+<title>Overview</title>
+<sect1 id="getting-started-with-operf">
+<title>Getting started with OProfile using <command>operf</command></title>
+<para>
+Profiling with <command>operf</command> allows you to precisely target your profiling (i.e., single process
+or system-wide). With <command>operf</command>, there is no initial setup needed -- simply invoke <command>operf</command> with
+the options you need; then run the OProfile post-processing tool(s). The <command>operf</command> syntax
+is as follows:
+</para>
+<screen>operf [ options ] [ --system-wide | --pid=&lt;PID&gt; | [ command [ args ] ] ]</screen>
+<para>
+A typical usage might look like this:
+</para>
+<screen>operf ./my_test_program my_arg</screen>
+<para>
+When <filename>./my_test_program</filename> completes (or when you press Ctrl-C), profiling
+stops and you're ready to use <command>opreport</command> or other OProfile post-processing tools.
+By default, <command>operf</command> stores the sample data in <filename>&lt;cur_dir&gt;/oprofile_data/samples/current</filename>,
+and <command>opreport</command> and other post-processing tools will look in that location first for profile data,
+unless you pass the <code>--session-dir</code> option.
+</para>
+</sect1>
+
+
+<sect1 id="getting-started-with-ocount">
+<title>Getting started with OProfile using <command>ocount</command></title>
+<para>
+<command>ocount</command> is an OProfile tool that can be used to count native hardware events occurring in either
+a specific application, a set of processes or threads, a set of active system processors, or the
+entire system. The data collected during a counting session is displayed to stdout by default, but may
+also be saved to a file.  The <command>ocount</command> syntax is as follows:
+<para>
+<screen>ocount [ options ] [ --system-wide | --process-list &lt;pids&gt; | --thread-list &lt;tids&gt; | --cpu-list &lt;cpus&gt; [ command [ args ] ] ]
+</screen>
+</para>
+A typical usage might look like this:
+<para>
+<screen>ocount --events=CPU_CLK_UNHALTED,INST_RETIRED /home/user1/my_test_program my_arg</screen>
+</para>
+When <filename>my_test_program</filename> completes (or when you press Ctrl-C), counting
+stops and the results are displayed to the screen (as shown below).
+<para>
+<screen>
+Events were actively counted for 2.8 seconds.
+Event counts (actual) for /home/user1/my_test_program:
+	Event                   Count                    % time counted
+	CPU_CLK_UNHALTED        9,408,018,070            100.00
+	INST_RETIRED            16,719,918,108           100.00
+</screen>
+</para>
+</para>
+</sect1>
+
+<sect1 id="eventspec">
+<title>Specifying performance counter events</title>
+<para>
+Whether profiling with <command>operf</command> or doing simple event counting with <command>ocount</command>,
+you can collect information about one more native hardware events using the <code>--events</code>
+option -- a comma-separated list of event specfications. The event specification is the means to provide details
+of how each hardware performance counter should be set up.
+For profiling, the event specification is a colon-separated string of the form
+<option><emphasis>name</emphasis>:<emphasis>count</emphasis>:<emphasis>unitmask</emphasis>:<emphasis>kernel</emphasis>:<emphasis>user</emphasis></option>
+as described in the table below. For <command>ocount</command>, specification is of the form
+<option><emphasis>name</emphasis>:<emphasis>unitmask</emphasis>:<emphasis>kernel</emphasis>:<emphasis>user</emphasis></option>.
+Note the presence of the <emphasis>count</emphasis> field for profiling.  The <emphasis>count</emphasis> field tells the profiler
+how many events should occur between a profile snapshot (usually referred to as a "sample").  Since
+<command>ocount</command> does not do sampling, the <emphasis>count</emphasis> field is not needed.
+</para>
+<para>
+If no event specs are passed to <command>operf</command> or <command>ocount</command>,
+the default event will be used.
+</para>
+<para>
+<note>The perf_events kernel subsystem allocates hardware counters as necessary, but some processor
+types have restrictions as to what hardware events may be counted simultaneously.
+The kernel employs a multiplexing technique when such
+hardware restrictions are encountered, such that events are monitored on a rotating basis.
+</note>
+</para>
+<informaltable frame="all">
+<tgroup cols='2'>
+<tbody>
+<row><entry><option>name</option></entry><entry>The symbolic event name, e.g. <constant>CPU_CLK_UNHALTED</constant></entry></row>
+<row><entry><option>count</option></entry><entry>The counter reset value, e.g. 100000; use only for profiling</entry></row>
+<row><entry><option>unitmask</option></entry><entry>The unit mask, as given in the events list: e.g. 0x0f; or a symbolic name
+if a <constant>name=&lt;um_name&gt;</constant> field is present</entry></row>
+<row><entry><option>kernel</option></entry><entry>Enable profiling of kernel code</entry></row>
+<row><entry><option>user</option></entry><entry>Enable profiling of userspace code</entry></row>
+</tbody>
+</tgroup>
+</informaltable>
+<para>
+The last three values are optional; if you omit them (e.g. <option>operf --events=DATA_MEM_REFS:30000</option>),
+they will be set to the default values (i.e., the default unit mask value for the given event, and profiling (or counting)
+both kernel and userspace code will be enabled). Note that on some architectures, some events may
+require a unit mask be specified.
+</para>
+<para>
+You can specify unit mask values using either a numerical value (hex values
+<emphasis>must</emphasis> begin with "0x") or a symbolic name (if the <constant>name=&lt;um_name&gt;</constant>
+field is shown in the <command>ophelp</command> output). For some named unit masks, the hex value is not unique; thus, OProfile
+tools enforce specifying such unit masks value by name.
+</para>
+<para>
+The table below lists the default profiling event for various processor types. The same events
+can be used for <command>ocount</command>, minus the <emphasis>count</emphasis> field.
+</para>
+<informaltable frame="all">
+<tgroup cols='3'>
+<tbody>
+<row><entry>Processor</entry><entry>cpu_type</entry><entry>Default event</entry></row>
+<row><entry>Alpha EV67</entry><entry>alpha/ev67</entry><entry>CYCLES:100000:0:1:1</entry></row>
+<row><entry>ARM/XScale PMU1</entry><entry>arm/xscale1</entry><entry>CPU_CYCLES:100000:0:1:1</entry></row>
+<row><entry>ARM/XScale PMU2</entry><entry>arm/xscale2</entry><entry>CPU_CYCLES:100000:0:1:1</entry></row>
+<row><entry>ARM/MPCore</entry><entry>arm/mpcore</entry><entry>CPU_CYCLES:100000:0:1:1</entry></row>
+<row><entry>Athlon</entry><entry>i386/athlon</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Pentium Pro</entry><entry>i386/ppro</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Pentium II</entry><entry>i386/pii</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Pentium III</entry><entry>i386/piii</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Pentium M (P6 core)</entry><entry>i386/p6_mobile</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Pentium 4 (non-HT)</entry><entry>i386/p4</entry><entry>GLOBAL_POWER_EVENTS:100000:1:1:1</entry></row>
+<row><entry>Pentium 4 (HT)</entry><entry>i386/p4-ht</entry><entry>GLOBAL_POWER_EVENTS:100000:1:1:1</entry></row>
+<row><entry>Hammer</entry><entry>x86-64/hammer</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Family10h</entry><entry>x86-64/family10</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>Family11h</entry><entry>x86-64/family11h</entry><entry>CPU_CLK_UNHALTED:100000:0:1:1</entry></row>
+<row><entry>IBM pseries</entry><entry>ppc64/power{ 4|5|6|7|8|970 }</entry><entry>CYCLES:100000:0:1:1</entry></row>
+<row><entry>IBM s390</entry><entry>s390/{ z10|z196|zEC12 }</entry><entry>HWSAMPLING:4127518:0:1:1</entry></row>
+</tbody>
+</tgroup>
+</informaltable>
+
+</sect1>
+
+<sect1 id="tools-overview">
+<title>Tools summary</title>
+<para>
+This section gives a brief description of the available OProfile utilities and their purpose.
+</para>
+<variablelist>
+<varlistentry>
+	<term><filename>ophelp</filename></term>
+	<listitem><para>
+		This utility lists the available events and short descriptions.
+	</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>operf</filename></term>
+	<listitem><para>
+		This is the program for collecting profile data, discussed in <xref linkend="controlling-operf" />.
+	</para></listitem>
+</varlistentry>
+	
+<varlistentry>
+	<term><filename>ocount</filename></term>
+	<listitem><para>
+		This tool is used for simple event counting, as described in in <xref linkend="controlling-ocount" />.
+	</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>agent libraries</filename></term>
+	<listitem><para>
+			Used by virtual machines (like the Java VM) to record information about JITed code being profiled. See <xref linkend="setup-jit" />.
+		</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>opreport</filename></term>
+	<listitem><para>
+		This is the main tool for retrieving useful profile data, described in
+		<xref linkend="opreport" />.
+	</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>opannotate</filename></term>
+	<listitem><para>
+		This utility can be used to produce annotated source, assembly or mixed source/assembly.
+		Source level annotation is available only if the application was compiled with 
+		debugging symbols. See <xref linkend="opannotate" />.
+	</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>opgprof</filename></term>
+	<listitem><para>
+		This utility can output gprof-style data files for a binary, for use with
+		<command>gprof -p</command>. See <xref linkend="opgprof" />.
+	</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>oparchive</filename></term>
+	<listitem><para>
+		This utility can be used to collect executables, debuginfo,
+		and sample files and copy the files into an archive.
+		The archive is self-contained and can be moved to another
+		machine for further analysis.
+		See <xref linkend="oparchive" />.
+	</para></listitem>
+</varlistentry>
+
+<varlistentry>
+	<term><filename>opimport</filename></term>
+	<listitem><para>
+		This utility converts sample database files from a foreign binary format (abi) to
+		the native format. This is useful only when moving sample files between hosts
+		for analysis on platforms other than the one used for collection.
+		See <xref linkend="opimport" />.
+	</para></listitem>
+</varlistentry>
+
+</variablelist>
+</sect1>
+	
+</chapter>
+
+<chapter id="controlling-profiler">
+<title>Controlling the profiler</title>
+
+<sect1 id="controlling-operf">
+<title>Using <command>operf</command></title>
+<para>
+This section describes in detail how <command>operf</command> is used to
+control profiling. Unless otherwise directed, <command>operf</command> will profile using
+the default event for your system. For most systems, the default event is some
+cycles-based event, assuming your processor type supports hardware performance
+counters. If your hardware <emphasis>does</emphasis> support performance counters, you can specify
+something other than the default hardware event on which to profile. The performance
+monitor counters can be programmed to count various hardware events,
+such as cache misses or MMX operations. The event
+chosen for each counter is reflected in the profile data collected
+by OProfile: functions and binaries at the top of the profiles reflect
+that most of the chosen events happened within that code.
+</para>
+<para>
+Additionally, each counter is programmed with a "count" value, which corresponds to how
+detailed the profile is. The lower the value, the more frequently profile
+samples are taken. You can choose to sample only kernel code, user-space code,
+or both (both is the default). Finally, some events have a "unit mask"
+-- this is a value that further restricts the type of event being counted.
+You can see the event types and unit masks for your CPU using <command>ophelp</command>.
+More information on event specification can be found at <xref linkend="eventspec"/>.
+</para>
+<para>
+The <command>operf</command> command syntax is:
+</para>
+<screen>operf [ options ] [ --system-wide | --pid=&lt;PID&gt; | [ command [ args ] ] ]</screen>
+<para>
+When profiling an application using either the <code>command</code> or <code>--pid</code> option of
+<command>operf</command>, forks and execs of the profiled process will also be profiled. The samples
+from an exec'ed process will be attributed to the executable binary run by that process. See
+<xref linkend="interpreting_operf_results"/>
+</para>
+<para>
+Following is a description of the <command>operf</command> options.
+</para>
+<variablelist>
+	<varlistentry>
+		<term><option>command [args]</option></term>
+		<listitem><para>
+		The command or application to be profiled. The <emphasis>[args]</emphasis> are the input arguments
+        that the command or application requires. Either <code>command</code>, <code>--pid</code> or
+        <code>--system-wide</code> is required, but cannot be used simultaneously.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--pid / -p [PID]</option></term>
+		<listitem><para>
+		This option enables <command>operf</command> to profile a running application. <code>PID</code>
+		should be the process ID of the process you wish to profile. When
+		finished profiling (e.g., when the profiled process ends), press
+		Ctrl-c to stop <command>operf</command>.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--system-wide / -s</option></term>
+		<listitem><para>
+		This option is for performing a system-wide profile. You must
+		have root authority to run <command>operf</command> in this mode.
+		When finished profiling, Ctrl-C to stop <command>operf</command>. If you run
+		<code>operf --system-wide</code> as a background job (i.e., with the &amp;), you
+		<emphasis>must</emphasis> stop it in a controlled manner in order to process
+		the profile data it has collected.  Use <code>kill -SIGINT &lt;operf-PID&gt;</code>
+		for this purpose. It is recommended that when running <command>operf</command>
+		with this option, your current working directory should be <filename>/root</filename> or a subdirectory
+		of <filename>/root</filename> to avoid storing sample data files in locations accessible by regular users.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--vmlinux / k [vmlinux_path]</option></term>
+		<listitem><para>
+		A vmlinux file that matches the running kernel that has symbol and/or debuginfo.
+		Kernel samples will be attributed to this binary, allowing post-processing tools
+		(like <command>opreport</command>) to attribute samples to the appropriate kernel symbols.
+		If this option is not specified, the file /proc/kallsyms is used to obtain
+		kernel symbol addresses correponding to sample addresses.  However, the setting of
+		/proc/sys/kernel/kptr_restrict may restrict a non-root user's access to
+		/proc/kallsyms, in which case,
+		all kernel samples are attributed to a pseudo binary named "no-vmlinux".
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--callgraph / -g</option></term>
+		<listitem><para>
+		This option enables the callgraph to be saved during profiling. NOTE: The
+		full callchain is recorded, so there is no depth limit.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--append / -a</option></term>
+		<listitem><para>
+		By default, <command>operf</command> moves old profile data from
+		<filename>&lt;session_dir&gt;/samples/current</filename> to
+		<filename>&lt;session_dir&gt;/samples/previous</filename>.
+		If a 'previous' profile already existed, it will be replaced. If the
+		<code>--append</code> option is passed, old profile data in 'current' is left in place and
+		new profile data will be added to it, and the 'previous' profile (if one existed)
+		will remain untouched. To access the 'previous' profile, simply add a session
+		specification to the normal invocation of oprofile post-processing tools; for example:
+		</para>
+		<para>
+		<screen>opreport session:previous</screen>
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--events / -e  [event1[,event2[,...]]]</option></term>
+		<listitem><para>
+		This option is for passing a comma-separated list of event specifications
+		for profiling. Each event spec is of the form:
+		</para>
+		<screen>name:count[:unitmask[:kernel[:user]]]</screen>
+		<para>
+		When no event specification is given, the default event for the running
+		processor type will be used for profiling. Use <command>ophelp</command>
+		to list the available events for your processor type.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--separate-thread / -t</option></term>
+		<listitem><para>
+		This option categorizes samples by thread group ID (tgid) and thread ID (tid).
+		The <code>--separate-thread</code> option is useful for seeing per-thread samples in
+		multi-threaded applications.  When used in conjuction with the <code>--system-wide</code>
+		option, <code>--separate-thread</code> is also useful for seeing per-process
+		(i.e., per-thread group) samples for the case where multiple processes are
+		executing the same program during a profiling run.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--separate-cpu / -c</option></term>
+		<listitem><para>
+		This option categorizes samples by cpu.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--session-dir / -d [path]</option></term>
+		<listitem><para>
+		This option specifies the session directory to hold the sample data. If not specified,
+		the data is saved in the <filename>oprofile_data</filename> directory on the current path.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+	   <term><option>---lazy-conversion / -l</option></term>
+		<listitem><para>
+		Use this option to reduce the overhead of <command>operf</command> during profiling.
+		Normally, profile data received from the kernel is converted to OProfile format
+		during profiling time. This is typically not an issue when profiling a single
+		application. But when using the <code>--system-wide</code> option, this on-the-fly
+		conversion process can cause noticeable overhead, particularly on busy
+		multi-processor systems. The <code>--lazy-conversion</code> option directs
+		<command>operf</command> to wait until profiling is completed to do the conversion
+		of profile data.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--verbose / -V [level]</option></term>
+		<listitem><para>
+		A comma-separated list of debugging control values used to increase the verbosity of the
+		output. Valid values are: debug, record, convert, misc, sfile, arcs, and the special value, 'all'.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--version -v </option></term>
+		<listitem><para>
+		Show <command>operf</command> version.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--help / -h</option></term>
+		<listitem><para>
+		Show a help message.
+		</para></listitem>
+	</varlistentry>
+</variablelist>
+</sect1>
+
+
+<sect1 id="setup-jit">
+	<title>Setting up the JIT profiling feature</title>
+	<para>
+		To gather information about JITed code from a virtual machine,
+		it needs to be instrumented with an agent library. We use the
+		agent libraries for Java in the following example. To use the
+		Java profiling feature, you must build OProfile with the "--with-java" option
+                (<xref linkend="install" />).
+
+	</para>
+
+	<sect2 id="setup-jit-jvm">
+		<title>JVM instrumentation</title>
+		<para>
+			Add this to the startup parameters of the JVM (for JVMTI):
+
+			<screen><option>-agentpath:&lt;libdir&gt;/libjvmti_oprofile.so[=&lt;options&gt;]</option> </screen>
+			or
+			<screen><option>-agentlib:jvmti_oprofile[=&lt;options&gt;]</option> </screen>
+		</para>
+		<para>
+			The JVMPI agent implementation is enabled with the command line option
+			<screen><option>-Xrunjvmpi_oprofile[:&lt;options&gt;]</option> </screen>
+		</para>
+		<para>
+			Currently, there is just one option available -- <option>debug</option>. For JVMPI,
+			the convention for specifying an option is <option>option_name=[yes|no]</option>.
+			For JVMTI, the option specification is simply the option name, implying
+			"yes"; no option specified implies "no".
+		</para>
+                <para>
+                        The agent library (installed in <filename>&lt;oprof_install_dir&gt;/lib/oprofile</filename>)
+                        needs to be in the library search path (e.g. add the library directory
+                        to <constant>LD_LIBRARY_PATH</constant>). If the command line of
+                        the JVM is not accessible, it may be buried within shell scripts or a
+                        launcher program. It may also be possible to set an environment variable to add
+                        the instrumentation.
+                        For Sun JVMs this is <constant>JAVA_TOOL_OPTIONS</constant>. Please check
+                        your JVM documentation for
+                        further information on the agent startup options.
+                </para>
+
+	</sect2>
+</sect1>
+
+
+<sect1 id="detailed-parameters">
+<title>Configuration details</title>
+
+<sect2 id="hardware-counters">
+<title>Hardware performance counters</title>
+<para>Most processor models include performance monitor units that can be configured to monitor (count)
+various types of hardware events.  This section is where you can find architecture-specific information
+to help you use these events for profiling. You do not really need to read this section unless you are interested in using
+events other than the default event chosen by OProfile.
+</para>
+<note>
+<para>
+Your CPU type may not include the requisite support for hardware performance counters, in which case
+you must use OProfile in timer mode (see <xref linkend="timer" />), which is only available in
+OProfile releases prior to 1.0.
+</para>
+</note>
+<para>
+The Intel hardware performance counters are detailed in the Intel IA-32 Architecture Manual, Volume 3, available
+from <ulink url="http://developer.intel.com/">http://developer.intel.com/</ulink>. 
+The AMD Athlon/Opteron/Phenom/Turion implementation is detailed in <ulink
+url="http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/22007.pdf">
+http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/22007.pdf</ulink>.
+For IBM PowerPC processors, documentation is available at <ulink url="https://www.power.org/">
+https://www.power.org/</ulink>. For example, <ulink url="https://www.power.org/events/Power7">
+https://www.power.org/events/Power7</ulink> contains specific information on the performance
+monitor unit for the IBM POWER7.
+</para>
+<para>
+A physical performance monitor counter (PMC) is configured by a profiling tool to count a particular
+type of event. When the counter overflows, an interrupt is delivered to the processor.
+This is the basic mechanism on which OProfile is based. The delivery mode is <acronym>NMI</acronym>,
+so blocking interrupts in the kernel does not prevent profiling. When the interrupt handler is called,
+the current <acronym>PC</acronym> (program counter) value and the current task are recorded into the profiling structure.
+This allows the overflow event to be attributed to a specific assembly instruction in a specific binary image.
+OProfile receives this data (commonly referred to as a "sample") from the kernel and writes it to the sample files.
+</para>
+<para>
+If we use an event such as <constant>CPU_CLK_UNHALTED</constant> or <constant>INST_RETIRED</constant>
+(<constant>GLOBAL_POWER_EVENTS</constant> or <constant>INSTR_RETIRED</constant>, respectively, on the Pentium 4), we can
+use the overflow counts (samples) as an estimate of actual time spent in each part of code. Alternatively we can profile interesting
+data such as the cache behaviour of routines with the other available counters.
+</para>
+<para>
+However there are several caveats. First, there are those issues listed in the Intel manual. There is a delay
+between the counter overflow and the interrupt delivery that can skew results on a small scale - this means
+you cannot rely on the profiles at the instruction level as being perfectly accurate.
+For example, if you are profiling an application with an event that counts L1 cache misses, a sample attributed
+to a particular instruction in the application doesn't necessarily mean that exact instruction is responsible
+for that event; instead, it means the sample was taken in the dynamic vicinity of that instruction,
+usually with a margin of error of a few instructions. Further details on this problem can be found in
+<xref linkend="interpreting" /> and also in the Digital paper "ProfileMe: A Hardware Performance Counter".
+</para>
+<para>
+Each counter has several configuration parameters besides the type of event to count.
+First, there is the unit mask, which is used to further qualify exactly what to count.
+Second, there is the <constant>count</constant> field, discussed below. Third, there are parameters
+to specify whether to increment counts
+whilst in kernel or user space. You can configure these separately for each counter.
+</para>
+<para>
+When the profiler is initially setup, a performance monitor counter is chosen for counting the
+event, and it is initialized using the <constant>count</constant> value.
+Once profiling begins, the counter increments with each event detected, and the counter
+<emphasis>overflows</emphasis> when the <constant>count</constant> value is reached.
+As described above, the counter overflow generates an interrupt, and the sample is recorded.
+After each overflow event, the counter is re-initialized using the <constant>count</constant> value,
+and counting begins anew for the next sample. Higher values for <constant>count</constant>
+result in samples being taken less frequently, and therefore less-detailed (and, potentially,
+less accurate) profiling. Lower values mean more detail, but higher overhead.
+Picking a good value for this parameter is, unfortunately, somewhat of a black art. It is
+of course dependent on the event you have chosen.
+Specifying too large a value will mean not enough interrupts are generated
+to give a realistic profile (though this problem can be ameliorated by profiling for
+longer time periods. Specifying too small a value can lead to higher performance overhead.
+</para>
+
+</sect2>
+
+<sect2 id="timer">
+<title>OProfile timer interrupt mode</title>
+<para>
+Some CPU types do not provide the needed hardware support for hardware performance counters.
+Additionally, some older architectures are not supported by the perf_events kernel subsystem.
+On such machines, the <command>operf</command> and <command>ocount</command> commands will exit with a message indicating the
+processor type is not supported. However, you can install OProfile 0.9.9 and use the legacy
+opcontrol-based profiler, which will fall back to using timer interrupts for profiling.
+Note that in timer mode, OProfile is not able to profile code that has interrupts disabled.
+<note>Timer mode is only available using the legacy <command>opcontrol</command> command,
+available in releases prior to 1.0.</note>
+</para>
+</sect2>
+
+<sect2 id="special-notes">
+<title>Architecture-specific configuration notes</title>
+<sect3 id="p4">
+<title>Pentium 4 support</title>
+<para>
+The Pentium 4 / Xeon performance counters are organized around 3 types of model specific registers (MSRs): 45 event
+selection control registers (ESCRs), 18 counter configuration control registers (CCCRs) and 18 counters. ESCRs describe a
+particular set of events which are to be recorded, and CCCRs bind ESCRs to counters and configure their
+operation. Unfortunately the relationship between these registers is quite complex; they cannot all be used with one
+another at any time. There is, however, a subset of 8 counters, 8 ESCRs, and 8 CCCRs which can be used independently of
+one another, so OProfile only accesses those registers, treating them as a bank of 8 "normal" counters, similar
+to those in the P6 or Athlon/Opteron/Phenom/Turion families of CPU.
+</para>
+<para>
+There is currently no support for Precision Event-Based Sampling (PEBS), nor any advanced uses of the Debug Store
+(DS). Current support is limited to the conservative extension of OProfile's existing interrupt-based model described
+above.
+</para>
+</sect3>
+
+<sect3 id="ppc64">
+<title>PowerPC64 support</title>
+<para>
+The performance monitoring unit (PMU) for the IBM PowerPC 64-bit processors 
+consists of between 4 and 8 counters (depending on the model).  Advanced features
+such as instruction matching and thresholding are not supported by OProfile.
+</para>
+
+</sect3>
+</sect2>
+
+
+
+</sect1>
+
+</chapter>
+
+<chapter id="results">
+<title>Obtaining profiling results</title>
+<para>
+After collecting profile data, the raw data must undergo special processing in order for you to
+perform your analysis. The analysis tools that perform this special processing are
+<command>opreport</command>, <command>opannotate</command>, and <command>opgprof</command>.
+Additionally, the <command>oparchive</command> is used to gather together profile
+data, sampled binary files, etc. for the purpose of off-line analysis.  While
+not really an analysis tool, <command>oparchive</command> is put in that category
+for convenience since it takes many of the same options as the other analysis tools.
+</para>
+
+<sect1 id="profile-spec">
+<title>Profile specifications</title>
+
+<para>
+All of the analysis tools take a <emphasis>profile specification</emphasis>
+as an input argument.
+This is a set of definitions that describes the specific profile data that should be
+examined. The simplest profile specification is empty: this will match all
+the available profile files for the current session.
+</para>
+<para>
+Specification parameters are of the form <option>name:value[,value]</option>.
+For example, if I wanted to get a combined symbol summary for
+<filename>/bin/myprog</filename> and <filename>/bin/myprog2</filename>,
+I could do <command>opreport -l image:/bin/myprog,/bin/myprog2</command>.
+As a special case, you don't actually need to specify the <option>image:</option>
+part of the specification. Anything left on the command line after all other
+<command>opreport</command> options have been processed is assumed to be an
+<option>image:</option> name. Similarly, if no <option>session:</option>
+is specified, then <option>session:current</option> is assumed ("current"
+is a special name of the current (i.e., most recent) profiling session).
+</para>
+<para>
+In addition to the comma-separated list shown above, some of the 
+specification parameters can take <command>glob</command>-style
+values. For example, if I want to see image summaries for all
+binaries profiled in <filename>/usr/bin/</filename>, I could do
+<command>opreport image:/usr/bin/\*</command>. Note the necessity
+to escape the special character from the shell.
+</para>
+<para>
+For <command>opreport</command>, profile specifications can be used to
+define two profiles, giving differential output. This is done by
+enclosing each of the two specifications within curly braces, as shown
+in the examples below. Any specifications outside of curly braces are
+shared across both.
+</para>
+
+<sect2 id="profile-spec-examples">
+<title>Examples</title>
+
+<para>
+Image summaries for all profiles with <constant>DATA_MEM_REFS</constant>
+samples in the saved session called "stresstest" :
+</para>
+<screen>
+# opreport session:stresstest event:DATA_MEM_REFS
+</screen>
+
+<para>
+Symbol summary for the application called "test_sym53c8xx,9xx". Note the
+escaping is necessary as <option>image:</option> takes a comma-separated list.
+</para>
+<screen>
+# opreport -l ./test/test_sym53c8xx\,9xx
+</screen>
+
+<para>
+Image summaries for all binaries in the <filename>test</filename> directory,
+excepting <filename>boring-test</filename> :
+</para>
+<screen>
+# opreport image:./test/\* image-exclude:./test/boring-test
+</screen>
+
+<para>
+Differential profile of a binary stored in two archives :
+</para>
+<screen>
+# opreport -l /bin/bash { archive:./orig } { archive:./new }
+</screen>
+
+<para>
+Differential profile of an archived binary with the current session :
+</para>
+<screen>
+# opreport -l /bin/bash { archive:./orig } { }
+</screen>
+
+</sect2> <!-- profile spec examples -->
+
+<sect2 id="profile-spec-details">
+<title>Profile specification parameters</title>
+
+<variablelist>
+	<varlistentry>
+		<term><option>archive:</option><emphasis>archivepath</emphasis></term>
+		<listitem><para>
+		A path to an archive made with <command>oparchive</command>.
+		Absence of this tag, unlike others, means "the current system",
+		equivalent to specifying "archive:".
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>session:</option><emphasis>sessionlist</emphasis></term>
+		<listitem><para>
+		A comma-separated list of session names to resolve in. Absence of this
+		tag, unlike others, means "the current session", equivalent to
+		specifying "session:current".
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>session-exclude:</option><emphasis>sessionlist</emphasis></term>
+		<listitem><para>
+                A comma-separated list of sessions to exclude.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>image:</option><emphasis>imagelist</emphasis></term>
+		<listitem><para>
+                A comma-separated list of image names to resolve. Each entry may be relative
+                path, <command>glob</command>-style name, or full path, e.g.</para>
+		<screen>opreport 'image:/usr/bin/oprofiled,*op*,./opreport'</screen>
+		</listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>image-exclude:</option><emphasis>imagelist</emphasis></term>
+		<listitem><para>
+		Same as <option>image:</option>, but the matching images are excluded.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>lib-image:</option><emphasis>imagelist</emphasis></term>
+		<listitem><para>
+		Same as <option>image:</option>, but only for images that are for
+		a particular primary binary image (namely, an application).
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>lib-image-exclude:</option><emphasis>imagelist</emphasis></term>
+		<listitem><para>
+		Same as <option>lib-image:</option>, but the matching images
+		are excluded.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>event:</option><emphasis>eventlist</emphasis></term>
+		<listitem><para>
+		The symbolic event name to match on, e.g. <option>event:DATA_MEM_REFS</option>.
+		You can pass a list of events for side-by-side comparison with <command>opreport</command>.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>count:</option><emphasis>eventcountlist</emphasis></term>
+		<listitem><para>
+		The event count to match on, e.g. <option>event:DATA_MEM_REFS count:30000</option>.
+		Note that this value refers to the count value in the event spec you passed
+		to <command>operf</command> when setting up to do a
+		profile run.  It has nothing to do with the sample counts in the profile data
+		itself.
+		You can pass a list of events for side-by-side comparison with <command>opreport</command>.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>unit-mask:</option><emphasis>masklist</emphasis></term>
+		<listitem><para>
+		The unit mask value of the event to match on, e.g. <option>unit-mask:1</option>.
+		You can pass a list of events for side-by-side comparison with <command>opreport</command>.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>cpu:</option><emphasis>cpulist</emphasis></term>
+		<listitem><para>
+		Only consider profiles for the given numbered CPU (starting from zero).
+		This is only useful when using CPU profile separation.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>tgid:</option><emphasis>pidlist</emphasis></term>
+		<listitem><para>
+		Only consider profiles for the given task groups. Unless some program
+		is using threads, the task group ID of a process is the same
+		as its process ID. This option corresponds to the POSIX
+		notion of a thread group.
+		This is only useful when using per-process profile separation.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>tid:</option><emphasis>tidlist</emphasis></term>
+		<listitem><para>
+		Only consider profiles for the given threads. When using
+		recent thread libraries, all threads in a process share the
+		same task group ID, but have different thread IDs. You can
+		use this option in combination with <option>tgid:</option> to
+		restrict the results to particular threads within a process.
+		This is only useful when using per-process profile separation.
+		</para></listitem>
+	</varlistentry>
+</variablelist>
+
+</sect2>
+
+<sect2 id="locating-and-managing-binary-images">
+<title>Locating and managing binary images</title>
+<para>
+Each session's sample files can be found in the $SESSION_DIR/samples/ directory (default
+for <command>operf</command> is <filename>&lt;cur_dir&gt;/oprofile_data/samples/</filename>).
+These are used, along with the binary image files, to produce human-readable data.
+In some circumstances (e.g., kernel modules), OProfile
+will not be able to find the binary images. All the tools have an <option>--image-path</option>
+option to which you can pass a comma-separated list of alternate paths to search. For example,
+I can let OProfile find my 2.6 modules by using <command>--image-path /lib/modules/2.6.0/kernel/</command>.
+It is your responsibility to ensure that the correct images are found when using this
+option.
+</para>
+<para>
+Note that if a binary image changes after the sample file was created, you won't be able to get useful
+symbol-based data out. This situation is detected for you. If you replace a binary, you should
+make sure to save the old binary if you need to do comparative profiles.
+</para>
+
+</sect2>
+
+<sect2 id="no-results">
+<title>What to do when you don't get any results</title>
+<para>
+When attempting to get output, you may see the error :
+</para>
+<screen>
+error: no sample files found: profile specification too strict ?
+</screen>
+<para>
+What this is saying is that the profile specification you passed in,
+when matched against the available sample files, resulted in no matches.
+There are a number of reasons this might happen:
+</para>
+<variablelist>
+<varlistentry><term>spelling</term><listitem><para>
+You specified a binary name, but spelt it wrongly. Check your spelling !
+</para></listitem></varlistentry>
+<varlistentry><term>profiler wasn't running</term><listitem><para>
+Make very sure that OProfile was actually up and running when you ran
+the application you wish to profile.
+</para></listitem></varlistentry>
+<varlistentry><term>application didn't run long enough</term><listitem><para>
+Remember OProfile is a statistical profiler - you're not guaranteed to
+get samples for short-running programs. You can help this by using a
+lower count for the performance counter, so there are a lot more samples
+taken per second.
+</para></listitem></varlistentry>
+<varlistentry><term>application spent most of its time in libraries</term><listitem><para>
+Similarly, if the application spends little time in the main binary image
+itself, with most of it spent in shared libraries it uses, you might
+not see any samples for the binary image (i.e., executable) itself.
+</para></listitem></varlistentry>
+<varlistentry><term>specification was really too strict</term><listitem><para>
+For example, you specified something like <option>tgid:3433</option>,
+but no task with that group ID ever ran the code.
+</para></listitem></varlistentry>
+<varlistentry><term>application didn't generate any events</term><listitem><para>
+If you're profiling a particular event, for example counting MMX
+operations, the code might simply have not generated any events in the
+first place. Verify the code you're profiling does what you expect it
+to.
+</para></listitem></varlistentry>
+<varlistentry><term>you didn't specify kernel module name correctly</term><listitem><para>
+If you're trying to get reports for a kernel
+module, make sure to use the <option>-p</option> option, and specify the
+module name <emphasis>with</emphasis> the <filename>.ko</filename>
+extension. Check if the module is one loaded from initrd.
+</para></listitem></varlistentry>
+</variablelist>
+
+</sect2>
+
+</sect1> <!-- profile-spec -->
+
+<sect1 id="opreport">
+<title>Image summaries and symbol summaries (<command>opreport</command>)</title>
+<para>
+The <command>opreport</command> utility is the primary utility you will use for 
+getting formatted data out of OProfile. It produces two types of data: image summaries
+and symbol summaries. An image summary lists the number of samples for individual
+binary images such as libraries or applications. Symbol summaries provide per-symbol
+profile data. In the following truncated example, we see an image summary for the whole
+system:
+</para>
+<screen>
+$ opreport --long-filenames
+CPU: Intel Sandy Bridge microarchitecture, speed 2401 MHz (estimated)
+Counted CPU_CLK_UNHALTED events (Clock cycles when not halted) with a unit mask of 0x00 (No unit mask) count 100000
+CPU_CLK_UNHALT...|
+  samples|      %|
+------------------
+    22577 28.9011 /usr/bin/Xorg
+        CPU_CLK_UNHALT...|
+          samples|      %|
+        ------------------
+            16846 74.6158 /proc/kallsyms
+             2126  9.4167 /usr/bin/Xorg
+              763  3.3795 /usr/lib64/libpixman-1.so.0.26.2
+              ...
+    17402 22.2766 /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.55.x86_64/jre/bin/java
+        CPU_CLK_UNHALT...|
+          samples|      %|
+        ------------------
+             5666 32.5595 anon (tgid:29664 range:0x7f3475000000-0x7f347616ffff)
+             2312 13.2858 /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.55.x86_64/jre/lib/amd64/server/libjvm.so
+             ...
+    11554 14.7904 /home/user1/oprof-install/bin/operf
+        CPU_CLK_UNHALT...|
+          samples|      %|
+        ------------------
+             7467 64.6270 /proc/kallsyms
+             1691 14.6356 /usr/bin/operf
+             1324 11.4592 /lib64/libc-2.12.so
+              455  3.9380 /usr/lib64/libstdc++.so.6.0.13
+              315  2.7263 /ext4
+              ...
+    ...
+</screen>
+<para>
+If we had specified <option>--symbols</option> in the previous command, we would have
+gotten a symbol summary of all the images across the entire system. We can restrict this to only
+part of the system profile; for example,
+below is a symbol summary for the <command>operf</command> program used to collect the profile.
+</para>
+<screen>
+$ opreport -l -p /lib/modules/`uname -r` `which operf` 2>/dev/null | more
+CPU: Intel Sandy Bridge microarchitecture, speed 2401 MHz (estimated)
+Counted CPU_CLK_UNHALTED events (Clock cycles when not halted) with a unit mask of 0x00 (No unit mask) count 100000
+samples  %        image name               symbol name
+860       7.4607  kallsyms                 avtab_search_node
+474       4.1121  operf                    OP_perf_utils::op_write_event(event_union*, unsigned long long)
+461       3.9993  kallsyms                 avc_has_perm_noaudit
+455       3.9473  libstdc++.so.6.0.13      /usr/lib64/libstdc++.so.6.0.13
+412       3.5742  libc-2.12.so             _IO_vfscanf
+369       3.2012  kallsyms                 __d_lookup
+350       3.0363  kallsyms                 sidtab_context_to_sid
+274       2.3770  operf                    OP_perf_utils::op_record_process_exec_mmaps(int, int, int, operf_record*)
+232       2.0127  operf                    operf_process_info::find_mapping_for_sample(unsigned long long, bool)
+222       1.9259  kallsyms                 __link_path_walk
+191       1.6570  kallsyms                 pipe_read
+34        0.2950  ext4.ko                  ext4_mark_iloc_dirty
+...
+</screen>
+
+<para>
+These are the two basic ways you are most likely to use regularly, but <command>opreport</command>
+can do a lot more than that, as described below.
+</para>
+
+<sect2 id="opreport-merging">
+<title>Merging separate profiles</title>
+
+If you have used one of the <option>--separate[*]</option> options
+whilst profiling, there can be several separate profiles for
+a single binary image within a session. Normally the output
+will keep these images separated. So, for example, if you profiled
+with separation on a per-cpu basis (<code>operf --separate-cpu</code>),
+you would see separate columns in
+the output of <command>opreport</command> for each CPU where samples
+were recorded. But it can be useful to merge these results back together
+to make the report more readable. The <option>--merge</option> option allows
+you to do that.
+</sect2>
+
+<sect2 id="opreport-comparison">
+<title>Side-by-side multiple results</title>
+If you have used multiple events when profiling, by default you get
+side-by-side results of each event's sample values from <command>opreport</command>.
+You can restrict which events to list by appropriate use of the
+<option>event:</option> profile specifications, etc.
+</sect2>
+
+<sect2 id="opreport-callgraph">
+<title>Callgraph output</title>
+<para>
+This section provides details on how to use the OProfile callgraph feature.
+</para>
+<sect3 id="op-cg1">
+<title>Callgraph details</title>
+<para>
+When using the <option>--callgraph</option> option, you can see what
+functions are calling other functions in the output. Consider the
+following program:
+</para>
+<screen>
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+
+#define SIZE 500000
+
+static int compare(const void *s1, const void *s2)
+{
+        return strcmp(s1, s2);
+}
+
+static void repeat(void)
+{
+        int i;
+        char *strings[SIZE];
+        char str[] = "abcdefghijklmnopqrstuvwxyz";
+
+        for (i = 0; i &lt; SIZE; ++i) {
+                strings[i] = strdup(str);
+                strfry(strings[i]);
+        }
+
+        qsort(strings, SIZE, sizeof(char *), compare);
+}
+
+int main()
+{
+        while (1)
+                repeat();
+}
+</screen>
+<para>
+When running with the call-graph option, OProfile will
+record the function stack every time it takes a sample.
+<command>opreport --callgraph</command> outputs an entry for each
+function, where each entry looks similar to:
+</para>
+<screen>
+samples  %        image name               symbol name
+  197       0.1548  cg                       main
+  127036   99.8452  cg                       repeat
+84590    42.5084  libc-2.3.2.so            strfry
+  84590    66.4838  libc-2.3.2.so            strfry [self]
+  39169    30.7850  libc-2.3.2.so            random_r
+  3475      2.7312  libc-2.3.2.so            __i686.get_pc_thunk.bx
+-------------------------------------------------------------------------------
+</screen>
+<para>
+Here the non-indented line is the function we're focussing upon
+(<function>strfry()</function>). This
+line is the same as you'd get from a normal <command>opreport</command>
+output.
+</para>
+<para>
+Above the non-indented line we find the functions that called this
+function (for example, <function>repeat()</function> calls
+<function>strfry()</function>). The samples and percentage values here
+refer to the number of times we took a sample where this call was found
+in the stack; the percentage is relative to all other callers of the
+function we're focussing on. Note that these values are
+<emphasis>not</emphasis> call counts; they only reflect the call stack
+every time a sample is taken; that is, if a call is found in the stack
+at the time of a sample, it is recorded in this count.
+</para>
+<para>
+Below the line are functions that are called by
+<function>strfry()</function> (called <emphasis>callees</emphasis>).
+It's clear here that <function>strfry()</function> calls
+<function>random_r()</function>. We also see a special entry with a
+"[self]" marker. This records the normal samples for the function, but
+the percentage becomes relative to all callees. This allows you to
+compare time spent in the function itself compared to functions it
+calls. Note that if a function calls itself, then it will appear in the
+list of callees of itself, but without the "[self]" marker; so recursive
+calls are still clearly separable.
+</para>
+<para>
+You may have noticed that the output lists <function>main()</function>
+as calling <function>strfry()</function>, but it's clear from the source
+that this doesn't actually happen. See <xref
+linkend="interpreting-callgraph" /> for an explanation.
+</para>
+</sect3>
+<sect3 id="cg-with-jitsupport">
+<title>Callgraph is not supported with JIT samples</title>
+<para>
+Callgraph output where anonymously mapped code is in the callstack can sometimes be misleading.
+For all such code, the samples for the anonymously mapped code are stored in a samples subdirectory
+named <filename>{anon:anon}/&lt;tgid&gt;.&lt;begin_addr&gt;.&lt;end_addr&gt;</filename>.
+As stated earlier, if this anonymously mapped code is JITed code from a supported VM like Java,
+OProfile creates an ELF file to provide a (somewhat) permanent backing file for the code.
+However, when viewing callgraph output, any anonymously mapped code in the callstack
+will be attributed to <filename>anon (&lt;tgid&gt;: range:&lt;begin_addr&gt;-&lt;end_addr&gt;</filename>,
+even if a <filename>.jo</filename> ELF file had been created for it.  See the example below.
+</para>
+<screen>
+-------------------------------------------------------------------------------
+  1         2.2727  libj9ute23.so            java.bin                 traceV
+  2         4.5455  libj9ute23.so            java.bin                 utsTraceV
+  4         9.0909  libj9trc23.so            java.bin                 fillInUTInterfaces
+  37       84.0909  libj9trc23.so            java.bin                 twGetSequenceCounter
+8         0.0154  libj9prt23.so            java.bin                 j9time_hires_clock
+  27       61.3636  anon (tgid:10014 range:0x100000-0x103000) java.bin                 (no symbols)
+  9        20.4545  libc-2.4.so              java.bin                 gettimeofday
+  8        18.1818  libj9prt23.so            java.bin                 j9time_hires_clock [self]
+-------------------------------------------------------------------------------
+</screen>
+<para>
+The output shows that "anon (tgid:10014 range:0x100000-0x103000)" was a callee of
+<code>j9time_hires_clock</code>, even though the ELF file <filename>10014.jo</filename> was
+created for this profile run.  Unfortunately, there is currently no way to correlate
+that anonymous callgraph entry with its corresponding <filename>.jo</filename> file.
+</para>
+</sect3>
+
+
+</sect2> <!-- opreport-callgraph -->
+
+<sect2 id="opreport-diff">
+<title>Differential profiles with <command>opreport</command></title>
+
+<para>
+Often, we'd like to be able to compare two profiles. For example, when
+analysing the performance of an application, we'd like to make code
+changes and examine the effect of the change. This is supported in
+<command>opreport</command> by giving a profile specification that
+identifies two different profiles. The general form is of:
+</para>
+<screen>
+$ opreport &lt;shared-spec&gt; { &lt;first-profile&gt; } { &lt;second-profile&gt; }
+</screen>
+<note><para>
+We lost our Dragon book down the back of the sofa, so you have to be
+careful to have spaces around those braces, or things will get
+hopelessly confused. We can only apologise.
+</para></note>
+<para>
+For each of the profiles, the shared section is prefixed, and then the
+specification is analysed. The usual parameters work both within the
+shared section, and in the sub-specification within the curly braces.
+</para>
+<para>
+A typical way to use this feature is with archives created with
+<command>oparchive</command>. Let's look at an example:
+</para>
+<screen>
+$ operf ./a
+$ oparchive -o orig ./a
+  # edit and recompile a
+$ operf ./a
+  # now compare the current profile of a with the archived profile
+$ opreport  --session-dir=`pwd`/oprofile_data/ -xl ./a { archive:./orig } { }
+CPU: PIII, speed 863.233 MHz (estimated)
+Counted CPU_CLK_UNHALTED events (clocks processor is not halted) with a
+unit mask of 0x00 (No unit mask) count 100000
+samples  %        diff %    symbol name
+92435    48.5366  +0.4999   a
+54226    ---      ---       c
+49222    25.8459  +++       d
+48787    25.6175  -2.2e-01  b
+</screen>
+<para>
+Note that we specified an empty second profile in the curly braces, as
+we wanted to use the current session; alternatively, we could
+have specified another archive, or a tgid etc. We specified the binary
+<command>a</command> in the shared section, so we matched that in both
+the profiles we're diffing.
+</para>
+<para>
+As in the normal output, the results are sorted by the number of
+samples, and the percentage field represents the relative percentage of
+the symbol's samples in the second profile.
+</para>
+<para>
+Notice the new column in the output. This value represents the
+percentage change of the relative percent between the first and the
+second profile: roughly, "how much more important this symbol is".
+Looking at the symbol <function>a()</function>, we can see that it took
+roughly the same amount of the total profile in both the first and the
+second profile. The function <function>c()</function> was not in the new
+profile, so has been marked with <function>---</function>. Note that the
+sample value is the number of samples in the first profile; since we're
+displaying results for the second profile, we don't list a percentage
+value for it, as it would be meaningless. <function>d()</function> is
+new in the second profile, and consequently marked with
+<function>+++</function>.
+</para>
+<para>
+When comparing profiles between different binaries, it should be clear
+that functions can change in terms of VMA and size. To avoid this
+problem, <command>opreport</command> considers a symbol to be the same
+if the symbol name, image name, and owning application name all match;
+any other factors are ignored. Note that the check for application name
+means that trying to compare library profiles between two different
+applications will not work as you might expect: each symbol will be
+considered different.
+</para>
+
+</sect2> <!-- opreport-diff -->
+
+<sect2 id="opreport-anon">
+<title>Anonymous executable mappings</title>
+<para>
+Many applications, typically ones involving dynamic compilation into
+machine code (just-in-time, or "JIT", compilation), have executable mappings that
+are not backed by an ELF file. <command>opreport</command> has basic support for showing the
+samples taken in these regions; for example:
+<screen>
+$ opreport /usr/bin/mono -l
+CPU: ppc64 POWER5, speed 1654.34 MHz (estimated)
+Counted CYCLES events (Processor Cycles using continuous sampling) with a unit mask of 0x00 (No unit mask) count 100000
+samples  %        image name    		                symbol name
+47       58.7500  mono                     			(no symbols)
+14       17.5000  anon (tgid:3189 range:0xf72aa000-0xf72fa000)  (no symbols)
+9        11.2500  anon (tgid:3189 range:0xf6cca000-0xf6dd9000)  (no symbols)
+.	 .	  .						.
+</screen>
+</para>
+<para>
+Note that, since such mappings are dependent upon individual invocations of
+a binary, these mappings are always listed as a dependent image.
+Equally, the results are not affected by the <option>--merge</option>
+option.
+</para>
+<para>
+As shown in the opreport output above, OProfile is unable to attribute the samples to any
+symbol(s) because there is no ELF file for this code.
+Enhanced support for JITed code is now available for some virtual machines; 
+e.g., the Java Virtual Machine.  For details about OProfile output for
+JITed code, see <xref linkend="getting-jit-reports" />.
+</para>
+<para>For more information about JIT support in OProfile, see <xref linkend="jitsupport"/>.
+</para>
+</sect2> <!-- opreport-anon -->
+
+<sect2 id="opreport-xml">
+<title>XML formatted output</title>
+<para>
+The --xml option can be used to generate XML instead of the usual
+text format.  This allows opreport to eliminate some of the constraints
+dictated by the two dimensional text format.  For example, it is possible
+to separate the sample data across multiple events, cpus and threads.  The XML
+schema implemented by opreport is found in doc/opreport.xsd. It contains
+more detailed comments about the structure of the XML generated by opreport.
+</para>
+<para>
+Since XML is consumed by a client program rather than a user, its structure
+is fairly static.  In particular, the --sort option is incompatible with the
+--xml option.  Percentages are not dislayed in the XML so the options related
+to percentages will have no effect.  Full pathnames are always displayed in
+the XML so --long-filenames is not necessary.  The --details option will cause
+all of the individual sample data to be included in the XML as well as the
+instruction byte stream for each symbol (for doing disassembly) and can result
+in very large XML files.
+</para>
+</sect2> <!-- opreport-xml -->
+
+<sect2 id="opreport-options">
+<title>Options for <command>opreport</command></title>
+
+<variablelist>
+<varlistentry><term><option>--accumulated / -a</option></term><listitem><para>
+Accumulate sample and percentage counts in the symbol list.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--callgraph / -c</option></term><listitem><para>
+Show callgraph information.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--debug-info / -g</option></term><listitem><para>
+Show source file and line for each symbol.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--demangle / -D none|normal|smart</option></term><listitem><para>
+none: no demangling. normal: use default demangler (default) smart: use
+pattern-matching to make C++ symbol demangling more readable.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--details / -d</option></term><listitem><para>
+Show per-instruction details for all selected symbols. Note that, for
+binaries without symbol information, the VMA values shown are raw file
+offsets for the image binary.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--exclude-dependent / -x</option></term><listitem><para>
+Do not include application-specific images for libraries, kernel modules
+and the kernel..
+</para></listitem></varlistentry>
+<varlistentry><term><option>--exclude-symbols / -e [symbols]</option></term><listitem><para>
+Exclude all the symbols in the given comma-separated list.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--global-percent / -%</option></term><listitem><para>
+Make all percentages relative to the whole profile.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--help / -? / --usage</option></term><listitem><para>
+Show help message.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--image-path / -p [paths]</option></term><listitem><para>
+Comma-separated list of additional paths to search for binaries.
+This is needed to find kernel modules.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--root / -R [path]</option></term><listitem><para>
+A path to a filesystem to search for additional binaries.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--include-symbols / -i [symbols]</option></term><listitem><para>
+Only include symbols in the given comma-separated list.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--long-filenames / -f</option></term><listitem><para>
+Output full paths instead of basenames.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--merge / -m [lib,cpu,tid,tgid,unitmask,all]</option></term><listitem><para>
+Merge any profiles separated in a --separate session.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--no-header</option></term><listitem><para>
+Don't output a header detailing profiling parameters.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--output-file / -o [file]</option></term><listitem><para>
+Output to the given file instead of stdout.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--reverse-sort / -r</option></term><listitem><para>
+Reverse the sort from the default.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--session-dir=dir_path</option></term><listitem><para>
+Use sample database from the specified directory <filename>dir_path</filename> instead
+of the default location. If this option is not specified, then opreport will search for
+samples in <filename>&lt;cur_dir&gt;/oprofile_data</filename>
+first. If that directory does not exist, the standard session-dir of
+<filename>/var/lib/oprofile</filename> is used
+as the session directory.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--show-address / -w</option></term><listitem><para>
+Show the VMA address of each symbol (off by default).
+</para></listitem></varlistentry>
+<varlistentry><term><option>--sort / -s [vma,sample,symbol,debug,image]</option></term><listitem><para>
+Sort the list of symbols by, respectively, symbol address,
+number of samples, symbol name, debug filename and line number,
+binary image filename.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--symbols / -l</option></term><listitem><para>
+List per-symbol information instead of a binary image summary.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--threshold / -t [percentage]</option></term><listitem><para>
+Only output data for symbols that have more than the given percentage
+of total samples. For profiles using multiple events, if the threshold is reached
+for any event, then all sample data for the symbol is shown.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--verbose / -V [options]</option></term><listitem><para>
+Give verbose debugging output.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--version / -v</option></term><listitem><para>
+Show version.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--xml / -X</option></term><listitem><para>
+Generate XML output.
+</para></listitem></varlistentry>
+</variablelist>
+
+</sect2>
+
+</sect1> <!-- opreport -->
+
+<sect1 id="opannotate">
+<title>Outputting annotated source (<command>opannotate</command>)</title>
+<para>
+The <command>opannotate</command> utility generates annotated source files or assembly listings, optionally
+mixed with source.
+If you want to see the source file, the profiled application needs to have debug information, and the source
+must be available through this debug information. For GCC, you must use the <option>-g</option> option
+when you are compiling.
+If the binary doesn't contain sufficient debug information, you can still
+use <command>opannotate <option>--assembly</option></command> to get annotated assembly
+as long as the binary has (at least) symbol information.
+</para>
+<para>
+Note that for the reason explained in <xref linkend="hardware-counters" /> the results can be
+inaccurate. The debug information itself can add other problems; for example, the line number for a symbol can be
+incorrect. Assembly instructions can be re-ordered and moved by the compiler, and this can lead to
+crediting source lines with samples not really "owned" by this line. Also see
+<xref linkend="interpreting" />.
+</para>
+<para>
+You can output the annotation to one single file, containing all the source found using the
+<option>--source</option>. You can use this in conjunction with <option>--assembly</option>
+to get combined source/assembly output.
+</para>
+<para>
+You can also output a directory of annotated source files that maintains the structure of
+the original sources. Each line in the annotated source is prepended with the samples
+for that line. Additionally, each symbol is annotated giving details for the symbol
+as a whole. An example:
+</para>
+<screen>
+$ opannotate --source --output-dir=annotated /usr/local/oprofile-pp/bin/oprofiled
+$ ls annotated/home/moz/src/oprofile-pp/daemon/
+opd_cookie.h  opd_image.c  opd_kernel.c  opd_sample_files.c  oprofiled.c
+</screen>
+<para>
+Line numbers are maintained in the source files, but each file has
+a footer appended describing the profiling details. The actual annotation
+looks something like this :
+</para>
+<screen>
+...
+               :static uint64_t pop_buffer_value(struct transient * trans)
+ 11510  1.9661 :{ /* pop_buffer_value total:  89901 15.3566 */
+               :        uint64_t val;
+               :
+ 10227  1.7469 :        if (!trans->remaining) {
+               :                fprintf(stderr, "BUG: popping empty buffer !\n");
+               :                exit(EXIT_FAILURE);
+               :        }
+               :
+               :        val = get_buffer_value(trans->buffer, 0);
+  2281  0.3896 :        trans->remaining--;
+  2296  0.3922 :        trans->buffer += kernel_pointer_size;
+               :        return val;
+ 10454  1.7857 :}
+...
+</screen>
+
+<para>
+The first number on each line is the number of samples, whilst the second is
+the relative percentage of total samples.
+</para>
+
+<sect2 id="opannotate-finding-source">
+<title>Locating source files</title>
+<para>
+Of course, <command>opannotate</command> needs to be able to locate the source files
+for the binary image(s) in order to produce output. Some binary images have debug
+information where the given source file paths are relative, not absolute. You can
+specify search paths to look for these files (similar to <command>gdb</command>'s
+<option>dir</option> command) with the <option>--search-dirs</option> option.
+</para>
+<para>
+Sometimes you may have a binary image which gives absolute paths for the source files,
+but you have the actual sources elsewhere (commonly, you've installed an SRPM for
+a binary on your system and you want annotation from an existing profile). You can
+use the <option>--base-dirs</option> option to redirect OProfile to look somewhere
+else for source files. For example, imagine we have a binary generated from a source
+file that is given in the debug information as <filename>/tmp/build/libfoo/foo.c</filename>,
+and you have the source tree matching that binary installed in <filename>/home/user/libfoo/</filename>.
+You can redirect OProfile to find <filename>foo.c</filename> correctly like this :
+</para>
+<screen>
+$ opannotate --source --base-dirs=/tmp/build/libfoo/ --search-dirs=/home/user/libfoo/ --output-dir=annotated/ /lib/libfoo.so
+</screen>
+<para>
+You can specify multiple (comma-separated) paths to both options.
+</para>
+</sect2>
+
+<sect2 id="opannotate-details">
+<title>Usage of <command>opannotate</command></title>
+
+<variablelist>
+<varlistentry><term><option>--assembly / -a</option></term><listitem><para>
+Output annotated assembly. If this is combined with --source, then mixed
+source / assembly annotations are output.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--base-dirs / -b [paths]/</option></term><listitem><para>
+Comma-separated list of path prefixes. This can be used to point OProfile to a
+different location for source files when the debug information specifies an
+absolute path on your system for the source that does not exist. The prefix
+is stripped from the debug source file paths, then searched in the search dirs
+specified by <option>--search-dirs</option>.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--demangle / -D none|normal|smart</option></term><listitem><para>
+none: no demangling. normal: use default demangler (default) smart: use
+pattern-matching to make C++ symbol demangling more readable.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--exclude-dependent / -x</option></term><listitem><para>
+Do not include application-specific images for libraries, kernel modules
+and the kernel.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--exclude-file [files]</option></term><listitem><para>
+Exclude all files in the given comma-separated list of glob patterns.
+This option is supported solely with the <code>--source</code>
+option. It can be used to filter out source files in the output using the
+following types of specifications:
+<itemizedlist>
+<listitem>filenames (basename -- i.e., no path)</listitem>
+<listitem>filename glob specifications (all files whose base filename matches the given pattern)</listitem>
+<listitem>directory segments (all source files located in the specified directory; e.g. "libio")</listitem>
+<listitem>directory segment glob specifications (e.g., "libi*")</listitem>
+</itemizedlist>
+</para></listitem></varlistentry>
+<varlistentry><term><option>--exclude-symbols / -e [symbols]</option></term><listitem><para>
+Exclude all the symbols in the given comma-separated list.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--help / -? / --usage</option></term><listitem><para>
+Show help message.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--image-path / -p [paths]</option></term><listitem><para>
+Comma-separated list of additional paths to search for binaries.
+This is needed to find kernel modules.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--root / -R [path]</option></term><listitem><para>
+A path to a filesystem to search for additional binaries.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--include-file [files]</option></term><listitem><para>
+Only include files in the given comma-separated list of glob patterns.
+The same rules apply for this option as for the <code>--exclude-file</code> option.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--include-symbols / -i [symbols]</option></term><listitem><para>
+Only include symbols in the given comma-separated list.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--objdump-params [params]</option></term><listitem><para>
+Pass the given parameters as extra values when calling objdump.
+If more than one option is to be passed to objdump, the parameters must be enclosed in a
+quoted string.
+</para>
+<para>
+An example of where this option is useful is when your toolchain does not
+automatically recognize instructions that are specific to your processor.
+For example, on IBM POWER7/RHEL 6, objdump must be told that a binary file may have
+POWER7-specific instructions. The <command>opannotate</command> option to show the POWER7-specific
+instructions is:
+<screen>
+   --objdump-params=-Mpower7
+</screen>
+</para>
+<para>
+The <command>opannotate</command> option to show the POWER7-specific instructions,
+the source code (--source) and the line numbers (-l) would be:
+<screen>
+   --objdump-params="-Mpower7 -l --source"
+</screen>
+</para></listitem></varlistentry>
+<varlistentry><term><option>--output-dir / -o [dir]</option></term><listitem><para>
+Output directory. This makes opannotate output one annotated file for each
+source file. This option can't be used in conjunction with --assembly.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--search-dirs / -d [paths]</option></term><listitem><para>
+Comma-separated list of paths to search for source files. This is useful to find
+source files when the debug information only contains relative paths.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--source / -s</option></term><listitem><para>
+Output annotated source. This requires debugging information to be available
+for the binaries.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--session-dir=dir_path</option></term><listitem><para>
+Use sample database from the specified directory <filename>dir_path</filename> instead
+of the default location. If this option is not specified, then opannotate will search for
+samples in <filename>&lt;cur_dir&gt;/oprofile_data</filename>
+first. If that directory does not exist, the standard session-dir of
+<filename>/var/lib/oprofile</filename> is used
+as the session directory.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--threshold / -t [percentage]</option></term><listitem><para>
+For annotated assembly, only output data for symbols that have more than the given percentage
+of total samples. For profiles using multiple events, if the threshold is reached
+for any event, then all sample data for the symbol is shown.
+</para>
+<para>
+For annotated source, only output data for source files that have more than the given percentage
+of total samples. For profiles using multiple events, if the threshold is reached
+for any event, then all sample data for the source file is shown.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--verbose / -V [options]</option></term><listitem><para>
+Give verbose debugging output.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--version / -v</option></term><listitem><para>
+Show version.
+</para></listitem></varlistentry>
+</variablelist>
+
+
+</sect2> <!-- opannotate-details -->
+
+</sect1> <!-- opannotate -->
+
+<sect1 id="getting-jit-reports">
+	<title>OProfile results with JIT samples</title>
+	<para>
+		After profiling a Java (or other supported VM) application, the
+		OProfile JIT support creates ELF binaries from the
+		intermediate files that were written by the agent library.
+		The ELF binaries are named <filename>&lt;tgid&gt;.jo</filename>.
+		With the symbol information stored in these ELF files, it is
+		possible to map samples to the appropriate symbols.
+	</para>
+	<para>
+		The usual analysis tools (<command>opreport</command> and/or 
+		<command>opannotate</command>) can now be used
+		to get symbols and assembly code for the instrumented VM processes.
+	</para>
+<para>
+Below is an example of a profile report of a Java application that has been
+instrumented with the provided agent library.
+<screen>
+$ opreport -l /usr/lib/jvm/jre-1.5.0-ibm/bin/java
+CPU: Core Solo / Duo, speed 2167 MHz (estimated)
+Counted CPU_CLK_UNHALTED events (Unhalted clock cycles) with a unit mask of 0x00 (Unhalted core cycles) count 100000
+samples  %        image name               symbol name
+186020   50.0523  no-vmlinux               no-vmlinux               (no symbols)
+34333     9.2380  7635.jo                  java                     void test.f1()
+19022     5.1182  libc-2.5.so              libc-2.5.so              _IO_file_xsputn@@GLIBC_2.1
+18762     5.0483  libc-2.5.so              libc-2.5.so              vfprintf
+16408     4.4149  7635.jo                  java                     void test$HelloThread.run()
+16250     4.3724  7635.jo                  java                     void test$test_1.f2(int)
+15303     4.1176  7635.jo                  java                     void test.f2(int, int)
+13252     3.5657  7635.jo                  java                     void test.f2(int)
+5165      1.3897  7635.jo                  java                     void test.f4()
+955       0.2570  7635.jo                  java                     void test$HelloThread.run()~
+
+</screen>
+</para>
+<note><para>
+	  Depending on the JVM that is used, certain options of opreport and opannotate
+	  do NOT work since they rely on debug information (e.g. source code line number)
+	  that is not always available. The Sun JVM does provide the necessary debug
+	  information via the JVMTI[PI] interface,
+	  but other JVMs do not.
+  </para></note>
+	<para>
+		As you can see in the opreport output, the JIT support agent for Java
+		generates symbols to include the class and method signature.
+		A symbol with the suffix &tilde;&lt;n&gt; (e.g.
+		<code>void test$HelloThread.run()&tilde;1</code>) means that this is
+		the &lt;n&gt;th occurrence of the identical name. This happens if a method is re-JITed.
+		A symbol with the suffix %&lt;n&gt;, means that the address space of this symbol
+		was reused during the sample session (see <xref linkend="overlapping-symbols" />).
+		The value &lt;n&gt; is the percentage of time that this symbol/code was present in
+		relation to the total lifetime of all overlapping other symbols. A symbol of the form
+		<code>&lt;return_val&gt; &lt;class_name&gt;$&lt;method_sig&gt;</code> denotes an
+		inner class.
+	</para>
+</sect1>
+
+<sect1 id="opgprof">
+<title><command>gprof</command>-compatible output (<command>opgprof</command>)</title>
+<para>
+If you're familiar with the output produced by <command>GNU gprof</command>,
+you may find <command>opgprof</command> useful. It takes a single binary
+as an argument, and produces a <filename>gmon.out</filename> file for use
+with <command>gprof -p</command>. If call-graph profiling is enabled,
+then this is also included.
+</para>
+<screen>
+$ opgprof `which oprofiled` # generates gmon.out file
+$ gprof -p `which oprofiled` | head
+Flat profile:
+
+Each sample counts as 1 samples.
+  %   cumulative   self              self     total
+ time   samples   samples    calls  T1/call  T1/call  name
+ 33.13 206237.00 206237.00                             odb_insert
+ 22.67 347386.00 141149.00                             pop_buffer_value
+  9.56 406881.00 59495.00                             opd_put_sample
+  7.34 452599.00 45718.00                             opd_find_image
+  7.19 497327.00 44728.00                             opd_process_samples
+</screen>
+
+<sect2 id="opgprof-details">
+<title>Usage of <command>opgprof</command></title>
+
+<variablelist>
+<varlistentry><term><option>--help / -? / --usage</option></term><listitem><para>
+Show help message.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--image-path / -p [paths]</option></term><listitem><para>
+Comma-separated list of additional paths to search for binaries.
+This is needed to find kernel modules.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--root / -R [path]</option></term><listitem><para>
+A path to a filesystem to search for additional binaries.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--output-filename / -o [file]</option></term><listitem><para>
+Output to the given file instead of the default, gmon.out
+</para></listitem></varlistentry>
+<varlistentry><term><option>--threshold / -t [percentage]</option></term><listitem><para>
+Only output data for symbols that have more than the given percentage
+of total samples.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--verbose / -V [options]</option></term><listitem><para>
+Give verbose debugging output.
+<varlistentry><term><option>--session-dir=dir_path</option></term><listitem><para>
+Use sample database from the specified directory <filename>dir_path</filename> instead
+of the default location. If this option is not specified, then opgprof will search for
+samples in <filename>&lt;cur_dir&gt;/oprofile_data</filename>
+first. If that directory does not exist, the standard session-dir of
+<filename>/var/lib/oprofile</filename> is used
+as the session directory.
+</para></listitem></varlistentry>
+</para></listitem></varlistentry>
+<varlistentry><term><option>--version / -v</option></term><listitem><para>
+Show version.
+</para></listitem></varlistentry>
+</variablelist>
+
+</sect2> <!-- opgprof-details -->
+
+</sect1> <!-- opgprof -->
+
+<sect1 id="oparchive">
+<title>Analyzing profile data on another system (<command>oparchive</command>)</title>
+<para>
+	The <command>oparchive</command> utility generates a directory populated
+	with executable, debug, and oprofile sample files. This directory can be
+	copied to another (host) machine and analyzed offline, with no further need to
+	access the data collection machine (target).
+</para>
+
+<para>
+	The following command, executed on the target system, will collect the
+	sample files, the executables associated with the sample files, and the
+	debuginfo files associated with the executables and copy them into
+	<filename>/tmp/current_data</filename>:
+</para>
+
+<screen>
+# oparchive -o /tmp/current_data
+</screen>
+
+<para>
+	When transferring archived profile data to a host machine for offline analysis,
+	you need to determine if the oprofile ABI format is compatible between the
+	target system and the host system; if it isn't, you must run the <command>opimport</command>
+	command to convert the target's sample data files to the format of your host system.
+	See <xref linkend="opimport"/> for more details.
+</para>
+
+<para>
+	After your profile data is transferred to the host system and (if necessary)
+	you have run the <command>opimport</command> command to convert the file
+	format, you can now run the <command>opreport</command> and
+	<command>opannotate</command> commands.  However, you must provide an
+	"archive specification" to let these post-processing tools know where to find
+	of the profile data (sample files, executables, etc.); for example:
+</para>
+
+<screen>
+# opreport archive:/home/user1/my_oprofile_archive --symbols
+</screen>
+
+<para>
+	Furthermore, if your profile was collected on your target system into a session-dir
+	other than <filename>/var/lib/oprofile</filename>, the <command>oparchive</command>
+	command will display a message similar to the following:
+</para>
+
+<screen>
+# NOTE: The sample data in this archive is located at /home/user1/test-stuff/oprofile_data
+instead of the standard location of /var/lib/oprofile.  Hence, when using opreport
+and other post-processing tools on this archive, you must pass the following option:
+        --session-dir=/home/user1/test-stuff/oprofile_data
+</screen>
+
+<para>
+	Then the above <command>opreport</command> example would have to include that
+	<option>--session-dir</option> option.
+</para>
+
+<para>
+<note>
+	 In some host/target development environments, all target executables, libraries, and
+	 debuginfo files are stored in a root directory on the host to facilitate offline
+	 analysis.  In such cases, the <command>oparchive</command> command collects more data
+	 than is necessary; so, when copying the resulting output of <command>oparchive</command>,
+	 you can skip all of the executables, etc, and just archive the <filename>$SESSION_DIR</filename>
+	 tree located within the output directory you specified in your <command>oparchive</command>
+	 command. Then, when running the <command>opreport</command> or	<command>opannotate</command>
+	 commands on your host system, pass the <option>--root</option> option to point to the
+	 location of your target's executables, etc.
+</note>
+</para>
+
+<sect2 id="oparchive-details">
+<title>Usage of <command>oparchive</command></title>
+
+<variablelist>
+<varlistentry><term><option>--help / -? / --usage</option></term><listitem><para>
+Show help message.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--exclude-dependent / -x</option></term><listitem><para>
+Do not include application-specific images for libraries, kernel modules
+and the kernel.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--image-path / -p [paths]</option></term><listitem><para>
+Comma-separated list of additional paths to search for binaries.
+This is needed to find kernel modules.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--root / -R [path]</option></term><listitem><para>
+A path to a filesystem to search for additional binaries.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--output-directory / -o [directory]</option></term><listitem><para>
+Output to the given directory. There is no default. This must be specified.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--list-files / -l</option></term><listitem><para>
+Only list the files that would be archived, don't copy them.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--verbose / -V [options]</option></term><listitem><para>
+Give verbose debugging output.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--session-dir=dir_path</option></term><listitem><para>
+Use sample database from the specified directory <filename>dir_path</filename> instead
+of the default location. If this option is not specified, then oparchive will search for
+samples in <filename>&lt;cur_dir&gt;/oprofile_data</filename>
+first. If that directory does not exist, the standard session-dir of
+<filename>/var/lib/oprofile</filename> is used
+as the session directory.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--version / -v</option></term><listitem><para>
+Show version.
+</para></listitem></varlistentry>
+</variablelist>
+
+</sect2> <!-- oparchive-details -->
+
+</sect1> <!-- oparchive -->
+
+<sect1 id="opimport">
+<title>Converting sample database files (<command>opimport</command>)</title>
+<para>
+	This utility converts sample database files from a foreign binary format (abi) to
+	the native format. This is required when moving sample files to a (host) system
+	other than the one used for collection (target system), and the host and target systems are different
+	architectures. The abi format of the sample files to be imported is described in a
+	text file located in <filename>$SESSION_DIR/abi</filename>.  If you are unsure if
+	your target and host systems have compatible architectures (in regard to the OProfile
+	ABI), simply diff a <filename>$SESSION_DIR/abi</filename> file from the target system
+	with one from the host system.  If any differences show up at all, you must run the
+	<command>opimport</command> command.
+</para>
+
+<para>
+	The <command>oparchive</command> command should be used on the machine where
+	the profile was taken (target) in order to collect sample files and all other necessary
+	information. The archive directory that is the output from <command>oparchive</command>
+	should be copied to the system where you wish to perform your performance analysis (host).
+</para>
+
+<para>
+	The following command converts an input sample file to the specified
+	output sample file using the given abi file as a binary description
+	of the input file and the curent platform abi as a binary description
+	of the output file. (NOTE: The ellipses are used to make the example more
+	compact and cannot be used in an actual command line.)
+</para>
+
+<screen>
+# opimport -a /tmp/foreign-abi -o /tmp/imported/.../GLOBAL_POWER_EVENTS.200000.1.all.all.all /tmp/archived/var/lib/.../mprime/GLOBAL_POWER_EVENTS.200000.1.all.all.all
+</screen>
+<para>
+    Since opimport converts just one file at a time, an example shell script is provided below
+    that will perform an import/conversion of all sample files in a samples directory collected
+    from the target system.
+<screen>
+#!/bin/bash
+Usage: my-import.sh &lt;input-abi-pathname&gt;
+
+# NOTE: Start from the "samples" directory containing the "current" directory
+# to be imported
+
+mkdir current-imported
+cd current-imported; (cd ../current; find . -type d ! -name .) |xargs mkdir
+cd ../current; mv stats ../StatsSave; find . -type f | while read line; do opimport  -a $1 -o ../current-imported/$line $line; done; mv ../StatsSave stats;
+</screen>
+</para>
+<para>
+Example usage:  Assume that on the target system, a profile was collected using a session-dir of
+<filename>/var/lib/oprofile</filename>, and then <command>oparchive -o profile1</command> was run.
+Then the <filename>profile1</filename> directory is copied to the host system for analysis.  To import
+the sample data in <filename>profile1</filename>, you would perform the following steps:
+<screen>
+$cd profile1/var/lib/oprofile/samples
+$my-import.sh `pwd`/../abi
+</screen>
+</para>
+<sect2 id="opimport-details">
+<title>Usage of <command>opimport</command></title>
+
+<variablelist>
+<varlistentry><term><option>--help / -? / --usage</option></term><listitem><para>
+Show help message.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--abi / -a [filename]</option></term><listitem><para>
+Input abi file description location.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--force / -f</option></term><listitem><para>
+Force conversion even if the input and output abi are identical.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--output / -o [filename]</option></term><listitem><para>
+Specify the output filename. If the output file already exists, the file is
+not overwritten but data are accumulated in. Sample filename are informative
+for post profile tools and must be kept identical, in other word the pathname
+from the first path component containing a '{' must be kept as it in the
+output filename.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--verbose / -V</option></term><listitem><para>
+Give verbose debugging output.
+</para></listitem></varlistentry>
+<varlistentry><term><option>--version / -v</option></term><listitem><para>
+Show version.
+</para></listitem></varlistentry>
+</variablelist>
+
+</sect2> <!-- opimport-details -->
+
+</sect1> <!-- opimport -->
+
+</chapter>
+
+<chapter id="interpreting">
+<title>Interpreting profiling results</title>
+<para>
+The standard caveats of profiling apply in interpreting the results from OProfile:
+profile realistic situations, profile different scenarios, profile
+for as long as a time as possible, avoid system-specific artifacts, don't trust
+the profile data too much. Also bear in mind the comments on the performance
+counters above - you <emphasis>cannot</emphasis> rely on totally accurate
+instruction-level profiling.  However, for almost all circumstances the data
+can be useful. Ideally a utility such as Intel's VTUNE would be available to
+allow careful instruction-level analysis; go hassle Intel for this, not me ;)
+</para>
+<sect1 id="irq-latency">
+<title>Profiling interrupt latency</title>
+<para>
+This is an example of how the latency of delivery of profiling interrupts
+can impact the reliability of the profiling data. This is pretty much a 
+worst-case-scenario example: these problems are fairly rare.
+</para>
+<screen>
+double fun(double a, double b, double c)
+{
+ double result = 0;
+ for (int i = 0 ; i &lt; 10000; ++i) {
+  result += a;
+  result *= b;
+  result /= c;
+ }
+ return result;
+}
+</screen>
+<para>
+Here the last instruction of the loop is very costly, and you would expect the result
+reflecting that - but (cutting the instructions inside the loop):
+</para>
+<screen>
+$ opannotate -a -t 10 ./a.out
+
+     88 15.38% : 8048337:       fadd   %st(3),%st
+     48 8.391% : 8048339:       fmul   %st(2),%st
+     68 11.88% : 804833b:       fdiv   %st(1),%st
+    368 64.33% : 804833d:       inc    %eax
+               : 804833e:       cmp    $0x270f,%eax
+               : 8048343:       jle    8048337
+</screen>
+<para>
+The problem comes from the x86 hardware; when the counter overflows the IRQ
+is asserted but the hardware has features that can delay the NMI interrupt:
+x86 hardware is synchronous (i.e. cannot interrupt during an instruction);
+there is also a latency when the IRQ is asserted, and the multiple
+execution units and the out-of-order model of modern x86 CPUs also causes
+problems. This is the same function, with annotation :
+</para>
+<screen>
+$ opannotate -s -t 10 ./a.out
+
+               :double fun(double a, double b, double c)
+               :{ /* _Z3funddd total:     572 100.0% */
+               : double result = 0;
+    368 64.33% : for (int i = 0 ; i &lt; 10000; ++i) {
+     88 15.38% :  result += a;
+     48 8.391% :  result *= b;
+     68 11.88% :  result /= c;
+               : }
+               : return result;
+               :}
+</screen>
+<para>
+The conclusion: don't trust samples coming at the end of a loop,
+particularly if the last instruction generated by the compiler is costly. This
+case can also occur for branches. Always bear in mind that samples
+can be delayed by a few cycles from its real position. That's a hardware
+problem and OProfile can do nothing about it.
+</para>
+</sect1>
+<sect1 id="kernel-profiling">
+<title>Kernel profiling</title>
+<sect2 id="irq-masking">
+<title>Interrupt masking</title>
+<para>
+OProfile uses non-maskable interrupts (NMI) on the P6 generation, Pentium 4,
+Athlon, Opteron, Phenom, and Turion processors. These interrupts can occur even in sections of the
+kernel where interrupts are disabled, allowing collection of samples in virtually
+all executable code.
+</para>
+</sect2>
+<sect2 id="idle">
+<title>Idle time</title>
+<para>
+Your kernel is likely to support halting the processor when a CPU is idle. As
+the typical hardware events like <constant>CPU_CLK_UNHALTED</constant> do not
+count when the CPU is halted, the kernel profile will not reflect the actual
+amount of time spent idle. You can change this behaviour by booting with
+the <option>idle=poll</option> option, which uses a different idle routine. This
+will appear as <function>poll_idle()</function> in your kernel profile.
+</para>
+</sect2>
+<sect2 id="kernel-modules">
+<title>Profiling kernel modules</title>
+<para>
+OProfile profiles kernel modules by default. However, there are a couple of problems
+you may have when trying to get results. First, you may have booted via an initrd;
+this means that the actual path for the module binaries cannot be determined automatically.
+To get around this, you can use the <option>-p</option> option to the analysis tools
+to specify where to look for the kernel modules.
+</para>
+<para>
+In kernel version 2.6, the information on where kernel module binaries are located was removed.
+This means OProfile needs guiding with the <option>-p</option> option to find your
+modules. Normally, you can just use your standard module top-level directory for this.
+Note that due to this problem, OProfile cannot check that the modification times match;
+it is your responsibility to make sure you do not modify a binary after a profile
+has been created.
+</para>
+<para>
+If you have run <command>insmod</command> or <command>modprobe</command> to insert a module
+in a particular directory, it is important that you specify this directory with the 
+<option>-p</option> option first, so that it over-rides an older module binary that might
+exist in other directories you've specified with <option>-p</option>. It is up to you
+to make sure that these values are correct: the kernel simply does not provide enough
+information for OProfile to get this information.
+</para>
+</sect2>
+</sect1>
+
+<sect1 id="interpreting-callgraph">
+<title>Interpreting call-graph profiles</title>
+<para>
+Sometimes the results from call-graph profiles may be different from what
+you expect to see. The first thing to check is whether the target
+binaries where compiled with frame pointers enabled (if the binary was
+compiled using <command>gcc</command>'s
+<option>-fomit-frame-pointer</option> option, you will not get
+meaningful results). Note that as of this writing, the GCC developers
+plan to disable frame pointers by default. The Linux kernel is built
+without frame pointers by default; there is a configuration option you
+can use to turn it on under the "Kernel Hacking" menu.
+</para>
+<para>
+Often you may see a caller of a function that does not actually directly
+call the function you're looking at (e.g. if <function>a()</function>
+calls <function>b()</function>, which in turn calls
+<function>c()</function>, you may see an entry for
+<function>a()->c()</function>).  What's actually occurring is that we
+are taking samples at the very start (or the very end) of
+<function>c()</function>; at these few instructions, we haven't yet
+created the new function's frame, so it appears as if
+<function>a()</function> is calling directly into
+<function>c()</function>. Be careful not to be misled by these
+entries.
+</para>
+<para>
+Like the rest of OProfile, call-graph profiling uses a statistical
+approach; this means that sometimes a backtrace sample is truncated, or
+even partially wrong. Bear this in mind when examining results.
+</para>
+<!--  FIXME: what do we need here ? -->
+</sect1>
+
+<sect1 id="debug-info">
+<title>Inaccuracies in annotated source</title>
+<sect2 id="effect-of-optimizations">
+<title>Side effects of optimizations</title>
+<para>
+The compiler can introduce some pitfalls in the annotated source output.
+The optimizer can move pieces of code in such manner that two line of codes
+are interlaced (instruction scheduling). Also debug info generated by the compiler 
+can show strange behavior. This is especially true for complex expressions e.g. inside
+an if statement:
+</para>
+<screen>
+	if (a &amp;&amp; ..
+	    b &amp;&amp; ..
+	    c &amp;&amp;)
+</screen>
+<para>
+here the problem come from the position of line number. The available debug
+info does not give enough details for the if condition, so all samples are
+accumulated at the position of the right brace of the expression. Using
+<command>opannotate <option>-a</option></command> can help to show the real
+samples at an assembly level.
+</para>
+</sect2>
+<sect2 id="prologues">
+<title>Prologues and epilogues</title>
+<para>
+The compiler generally needs to generate "glue" code across function calls, dependent
+on the particular function call conventions used. Additionally other things
+need to happen, like stack pointer adjustment for the local variables; this
+code is known as the function prologue. Similar code is needed at function return,
+and is known as the function epilogue. This will show up in annotations as
+samples at the very start and end of a function, where there is no apparent
+executable code in the source.
+</para>
+</sect2>
+<sect2 id="inlined-function">
+<title>Inlined functions</title>
+<para>
+You may see that a function is credited with a certain number of samples, but
+the listing does not add up to the correct total. To pick a real example :
+</para>
+<screen>
+               :internal_sk_buff_alloc_security(struct sk_buff *skb)
+ 353 2.342%    :{ /* internal_sk_buff_alloc_security total: 1882 12.48% */
+               :
+               :        sk_buff_security_t *sksec;
+  15 0.0995%   :        int rc = 0;
+               :
+  10 0.06633%  :        sksec = skb-&gt;lsm_security;
+ 468 3.104%    :        if (sksec &amp;&amp; sksec-&gt;magic == DSI_MAGIC) {
+               :                goto out;
+               :        }
+               :
+               :        sksec = (sk_buff_security_t *) get_sk_buff_memory(skb);
+   3 0.0199%   :        if (!sksec) {
+  38 0.2521%   :                rc = -ENOMEM;
+               :                goto out;
+  10 0.06633%  :        }
+               :        memset(sksec, 0, sizeof (sk_buff_security_t));
+  44 0.2919%   :        sksec-&gt;magic = DSI_MAGIC;
+  32 0.2123%   :        sksec-&gt;skb = skb;
+  45 0.2985%   :        sksec-&gt;sid = DSI_SID_NORMAL;
+  31 0.2056%   :        skb-&gt;lsm_security = sksec;
+               :
+               :      out:
+               :
+ 146 0.9685%   :        return rc;
+               :
+  98 0.6501%   :}
+</screen>
+<para>
+Here, the function is credited with 1,882 samples, but the annotations
+below do not account for this. This is usually because of inline functions -
+the compiler marks such code with debug entries for the inline function
+definition, and this is where <command>opannotate</command> annotates
+such samples. In the case above, <function>memset</function> is the most
+likely candidate for this problem. Examining the mixed source/assembly
+output can help identify such results.
+</para>
+<para>
+This problem is more visible when there is no source file available, in the
+following example it's trivially visible the sums of symbols samples is less
+than the number of the samples for this file. The difference must be accounted
+to inline functions.
+</para>
+<screen>
+/*
+ * Total samples for file : "arch/i386/kernel/process.c"
+ *
+ *    109  2.4616
+ */
+
+ /* default_idle total:     84  1.8970 */
+ /* cpu_idle total:         21  0.4743 */
+ /* flush_thread total:      1  0.0226 */
+ /* prepare_to_copy total:   1  0.0226 */
+ /* __switch_to total:      18  0.4065 */
+</screen>
+<para>
+The missing samples are not lost, they will be credited to another source
+location where the inlined function is defined. The inlined function will be
+credited from multiple call site and merged in one place in the annotated
+source file so there is no way to see from what call site are coming the
+samples for an inlined function.
+</para>
+<para>
+When running <command>opannotate</command>, you may get a warning
+"some functions compiled without debug information may have incorrect source line attributions".
+In some rare cases, OProfile is not able to verify that the derived source line
+is correct (when some parts of the binary image are compiled without debugging
+information). Be wary of results if this warning appears.
+</para>
+<para>
+Furthermore, for some languages the compiler can implicitly generate functions,
+such as default copy constructors. Such functions are labelled by the compiler
+as having a line number of 0, which means the source annotation can be confusing.
+</para>
+<!-- FIXME so what *actually* happens to those samples ? ignored ? -->
+</sect2>
+<sect2 id="wrong-linenr-info">
+<title>Inaccuracy in line number information</title>
+<para>
+Depending on your compiler you can fall into the following problem:
+</para>
+<screen>
+struct big_object { int a[500]; };
+
+int main()
+{
+	big_object a, b;
+	for (int i = 0 ; i != 1000 * 1000; ++i)
+		b = a;
+	return 0;
+}
+
+</screen>
+<para>
+Compiled with <command>gcc</command> 3.0.4 the annotated source is clearly inaccurate:
+</para>
+<screen>
+               :int main()
+               :{  /* main total: 7871 100% */
+               :        big_object a, b;
+               :        for (int i = 0 ; i != 1000 * 1000; ++i)
+               :                b = a;
+ 7871 100%     :        return 0;
+               :}
+</screen>
+<para>
+The problem here is distinct from the IRQ latency problem; the debug line number
+information is not precise enough; again, looking at output of <command>opannoatate -as</command> can help.
+</para>
+<screen>
+               :int main()
+               :{
+               :        big_object a, b;
+               :        for (int i = 0 ; i != 1000 * 1000; ++i)
+               : 80484c0:       push   %ebp
+               : 80484c1:       mov    %esp,%ebp
+               : 80484c3:       sub    $0xfac,%esp
+               : 80484c9:       push   %edi
+               : 80484ca:       push   %esi
+               : 80484cb:       push   %ebx
+               :                b = a;
+               : 80484cc:       lea    0xfffff060(%ebp),%edx
+               : 80484d2:       lea    0xfffff830(%ebp),%eax
+               : 80484d8:       mov    $0xf423f,%ebx
+               : 80484dd:       lea    0x0(%esi),%esi
+               :        return 0;
+    3 0.03811% : 80484e0:       mov    %edx,%edi
+               : 80484e2:       mov    %eax,%esi
+    1 0.0127%  : 80484e4:       cld
+    8 0.1016%  : 80484e5:       mov    $0x1f4,%ecx
+ 7850 99.73%   : 80484ea:       repz movsl %ds:(%esi),%es:(%edi)
+    9 0.1143%  : 80484ec:       dec    %ebx
+               : 80484ed:       jns    80484e0
+               : 80484ef:       xor    %eax,%eax
+               : 80484f1:       pop    %ebx
+               : 80484f2:       pop    %esi
+               : 80484f3:       pop    %edi
+               : 80484f4:       leave
+               : 80484f5:       ret
+</screen>
+<para>
+So here it's clear that copying is correctly credited with of all the samples, but the
+line number information is misplaced. <command>objdump -dS</command> exposes the
+same problem. Note that maintaining accurate debug information for compilers when optimizing is difficult, so this problem is not suprising.
+The problem of debug information
+accuracy is also dependent on the binutils version used; some BFD library versions
+contain a work-around for known problems of <command>gcc</command>, some others do not. This is unfortunate but we must live with that,
+since profiling is pointless when you disable optimisation (which would give better debugging entries).
+</para>
+</sect2>
+</sect1>
+<sect1 id="symbol-without-debug-info">
+<title>Assembly functions</title>
+<para>
+Often the assembler cannot generate debug information automatically.
+This means that you cannot get a source report unless 
+you manually define the neccessary debug information; read your assembler documentation for how you might
+do that. The only
+debugging info needed currently by OProfile is the line-number/filename-VMA association. When profiling assembly
+without debugging info you can always get report for symbols, and optionally for VMA, through <command>opreport -l</command>
+or <command>opreport -d</command>, but this works only for symbols with the right attributes.
+For <command>gas</command> you can get this by
+</para>
+<screen>
+.globl foo
+	.type	foo,@function
+</screen>
+<para> 
+whilst for <command>nasm</command> you must use
+</para>
+<screen>
+	  GLOBAL foo:function		; [1]
+</screen>
+<para>
+Note that OProfile does not need the global attribute, only the function attribute.
+</para>
+</sect1>
+<!-- 
+
+FIXME: I commented this bit out until we've written something ...
+
+improve this ? but look first why this file is special 
+<sect2 id="small-functions">
+<title>Small functions</title>
+<para>
+Very small functions can show strange behavior. The file in your source
+directory of OProfile <filename>$SRC/test-oprofile/understanding/puzzle.c</filename>
+show such example
+</para>
+</sect2>
+--> 
+
+<sect1 id="overlapping-symbols">
+	<title>Overlapping symbols in JITed code</title>
+	<para>
+	Some virtual machines (e.g., Java) may re-JIT a method, resulting in previously
+	allocated space for a piece of compiled code to be reused. This means that, at one distinct
+	code address, multiple symbols/methods may be present during the run time of the application.
+	</para>
+	<para>
+	Since OProfile samples are buffered and don&prime;t have timing information, there is no way
+	to correlate samples with the (possibly) varying address ranges in which the code for a symbol
+	may reside.
+	An alternative would be flushing the OProfile sampling buffer when we get an unload event,
+	but this could result in high overhead.
+	</para>
+	<para>
+	To moderate the problem of overlapping symbols, OProfile tries to select the symbol that was
+	present at this address range most of the time. Additionally, other overlapping symbols
+	are truncated in the overlapping area.
+	This gives reasonable results, because in reality, address reuse typically takes place
+	during phase changes of the application -- in particular, during application  startup.
+	Thus, for optimum profiling results, start the sampling session after application startup
+	and burn in.
+	</para>
+</sect1>
+
+<sect1 id="interpreting_operf_results">
+<title>Using operf to profile fork/execs</title>
+<para>
+When profiling an application that forks one or more new processes, <command>operf</command> will
+record samples for both the parent process and forked processes. This is also true even if the
+forked process performs an exec of some sort (e.g., <code>execvp</code>). If the
+process does <emphasis>not</emphasis> perform an exec, you will see that <command>opreport</command>
+will attribute samples for the forked process to the main application executable.  On the other
+hand, if the forked process <emphasis>does</emphasis> perform an exec, then <command>opreport</command>
+will attribute samples to the executable being exec'ed.
+</para>
+<para>
+To demonstrate this, consider the following examples.
+When using <command>operf</command> to profile a single application (either with the <code>--pid</code>
+option or <code>command</code> option), the normal <command>opreport</command> summary output
+(i.e., invoking <command>opreport</command> with no options) looks something like the following:
+<screen>
+CPU_CLK_UNHALT...|
+  samples|      %|
+------------------
+   112342 100.000 sprintft
+	CPU_CLK_UNHALT...|
+	  samples|      %|
+	------------------
+	   104209 92.7605 libc-2.12.so
+	     7273  6.4740 sprintft
+	      858  0.7637 no-vmlinux
+	        2  0.0018 ld-2.12.so
+</screen>
+</para>
+<para>
+But if you profile an application that does a fork/exec, the <command>opreport</command> summary output
+will show samples for both the main application you profiled, as well as the exec'ed program.
+An example is shown below where <code>s-m-fork</code> is the main application being profiled, which
+in turn forks a process that does an <code>execvp</code> of the <code>memcpyt</code> program.
+<screen>
+CPU_CLK_UNHALT...|
+  samples|      %|
+------------------
+   133382 70.5031 memcpyt
+	CPU_CLK_UNHALT...|
+	  samples|      %|
+	------------------
+	   123852 92.8551 libc-2.12.so
+	     8522  6.3892 memcpyt
+	     1007  0.7550 no-vmlinux
+	        1 7.5e-04 ld-2.12.so
+    55804 29.4969 s-m-fork
+	CPU_CLK_UNHALT...|
+	  samples|      %|
+	------------------
+	    51801 92.8267 libc-2.12.so
+	     3589  6.4314 s-m-fork
+	      414  0.7419 no-vmlinux
+</screen>
+</para>
+</sect1>
+
+<sect1 id="hidden-cost">
+<title>Other discrepancies</title>
+<para>
+Another cause of apparent problems is the hidden cost of instructions. A very
+common example is two memory reads: one from L1 cache and the other from memory:
+the second memory read is likely to have more samples.
+There are many other causes of hidden cost of instructions. A non-exhaustive
+list: mis-predicted branch, TLB cache miss, partial register stall,
+partial register dependencies, memory mismatch stall, re-executed µops. If you want to write
+programs at the assembly level, be sure to take a look at the Intel and
+AMD documentation at <ulink url="http://developer.intel.com/">http://developer.intel.com/</ulink>
+and <ulink url="http://developer.amd.com/devguides.jsp/">http://developer.amd.com/devguides.jsp</ulink>.
+</para>
+</sect1>
+</chapter>
+
+<chapter id="controlling-counter">
+<title>Controlling the event counter</title>
+<sect1 id="controlling-ocount">
+<title>Using <command>ocount</command></title>
+<para>
+This section describes in detail how <command>ocount</command> is used.
+Unless the <option>--events</option> option is specified, <command>ocount</command> will use
+the default event for your system. For most systems, the default event is some
+cycles-based event, assuming your processor type supports hardware performance
+counters. The event specification used for <command>ocount</command> is slightly
+different from that required for profiling -- a <emphasis>count</emphasis> value
+is not needed. You can see the event information for your CPU using <command>ophelp</command>.
+More information on event specification can be found at <xref linkend="eventspec"/>.
+</para>
+<para>
+The <command>ocount</command> command syntax is:
+<para>
+<screen>ocount [ options ] [ --system-wide | --process-list &lt;pids&gt; | --thread-list &lt;tids&gt; | --cpu-list &lt;cpus&gt; [ command [ args ] ] ]
+</screen>
+</para></para>
+<para>
+<command>ocount</command> has 5 run modes:
+<para>
+<itemizedlist>
+<listitem>system-wide</listitem>
+<listitem>process-list</listitem>
+<listitem>thread-list</listitem>
+<listitem>cpu-list</listitem>
+<listitem>command</listitem>
+</itemizedlist>
+</para></para>
+<para>
+One and only one of these 5 run modes must be specified when you run <command>ocount</command>.
+If you run <command>ocount</command> using a run mode other than <code>command [args]</code>, press Ctrl-c
+to stop it when finished counting (e.g., when the monitored process ends). If you background <command>ocount</command>
+(i.e., with ’&amp;’) while using one these run modes, you must stop it in a controlled manner so that
+the data collection process can be shut down cleanly and final results can be displayed.
+Use <code>kill -SIGINT &lt;ocount-PID&gt;</code> for this purpose.
+</para>
+<para>
+Following is a description of the <command>ocount</command> options.
+</para>
+<variablelist>
+	<varlistentry>
+		<term><option>command [args]</option></term>
+		<listitem><para>
+		The command or application to be profiled. The <emphasis>[args]</emphasis> are the input arguments
+        that the command or application requires. The command and its arguments must be positioned at the
+        end of the command line, after all other <command>ocount</command> options.
+        </para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--process-list / -p [PIDs]</option></term>
+		<listitem><para>
+		Use this option to count events for one or more already-running applications, specified via
+        a comma-separated list (PIDs). Event counts will be collected for all children of the
+        passed process(es) as well.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--thread-list / -r [TIDs]</option></term>
+		<listitem><para>
+		Use this option to count events for one or more already-running threads, specified via
+        a comma-separated list (TIDs). Event counts will <emphasis>not</emphasis> be collected
+        for any children of the passed thread(s).
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--system-wide / -s</option></term>
+		<listitem><para>
+		This option is for counting events for all processes running on your system. You must have
+        root authority to run <command>ocount</command> in this mode.
+        </para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--cpu-list / -C [CPUs]</option></term>
+		<listitem><para>
+		This option is for counting events on a subset of processors on your system. You must have
+        root authority to run <command>ocount</command> in this mode. This is a comma-separated list,
+        where each element in the list may be either a single processor number or a range of processor
+        numbers; for example: ’-C 2,3,4-11,15’.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--events / -e  [event1[,event2[,...]]]</option></term>
+		<listitem><para>
+		This option is for passing a comma-separated list of event specifications
+		for counting. Each event spec is of the form:
+		</para>
+		<screen>name[:unitmask[:kernel[:user]]]</screen>
+		<para>
+		When no event specification is given, the default event for the running
+		processor type will be used for counting. Use <command>ophelp</command>
+		to list the available events for your processor type.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--separate-thread / -t</option></term>
+		<listitem><para>
+        This option can be used in conjunction with either the <code>--process-list</code> or
+        <code>--thread-list</code> option to display event counts on a per-thread (per-process) basis.
+        Without this option, all counts are aggregated.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--separate-cpu / -c</option></term>
+		<listitem><para>
+		This option can be used in conjunction with either the <code>--system-wide</code> or
+		<code>--cpu-list</code> option to display event counts on a per-cpu basis. Without this option,
+		all counts are aggregated.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--time-interval / -i interval_length[:num_intervals]</option></term>
+		<listitem><para>
+		<command>Note: </command>The <code>interval_length</code> is given in milliseconds.
+              However, the current implementation only supports 100 ms
+              granularity, so the given <code>interval_length</code> will be rounded
+              to the nearest 100 ms.  Results collected for each time
+              interval are printed immediately instead of the default
+              of one dump of cumulative event counts at the end of the
+              run.  Counters are reset to zero at the start of each
+              interval.
+		</para>
+		<para>
+              If <code>num_intervals</code> is specified, ocount exits after the
+              specified number of intervals occur.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+	   <term><option>--brief-format / -b</option></term>
+		<listitem><para>
+		Use this option to print results in the following brief format:
+		<para><screen>
+                  [optional cpu or thread,]&lt;event_name&gt;,&lt;count&gt;,&lt;percent_time_enabled&gt;
+                  [        &lt;int&gt;         ,]&lt;  string  &gt;,&lt; u64 &gt;,&lt;     double         &gt;
+        </screen></para>
+        If <code>--timer-interval</code> is specified, a separate line formatted as
+        <para><screen>
+                  timestamp,&lt;num_seconds_since_epoch&gt;[.n]
+        </screen></para>
+        is printed ahead of each dump of event counts. If the time interval specified is
+        less than one second, the timestamp will have 1/10 second precision.
+		</para></listitem>
+	</varlistentry>
+
+	<varlistentry>
+		<term><option>--output-file / -f outfile_name</option></term>
+		<listitem><para>
+		Results are written to outfile_name instead of interactively to the terminal.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--verbose / -V</option></term>
+		<listitem><para>
+		Use this option to increase the verbosity of the output.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--version -v </option></term>
+		<listitem><para>
+		Show <command>ocount</command> version.
+		</para></listitem>
+	</varlistentry>
+	<varlistentry>
+		<term><option>--help / -h</option></term>
+		<listitem><para>
+		Show a help message.
+		</para></listitem>
+	</varlistentry>
+</variablelist>
+
+</sect1>
+</chapter>
+
+
+<chapter id="ack">
+<title>Acknowledgments</title>
+<para>
+Thanks to (in no particular order) : Arjan van de Ven, Rik van Riel, Juan Quintela, Philippe Elie,
+Phillipp Rumpf, Tigran Aivazian, Alex Brown, Alisdair Rawsthorne, Bob Montgomery, Ray Bryant, H.J. Lu,
+Jeff Esper, Will Cohen, Graydon Hoare, Cliff Woolley, Alex Tsariounov, Al Stone, Jason Yeh,
+Randolph Chung, Anton Blanchard, Richard Henderson, Andries Brouwer, Bryan Rittmeyer,
+Maynard P. Johnson,
+Richard Reich (rreich@rdrtech.com), Zwane Mwaikambo, Dave Jones, Charles Filtness; and finally Pulp, for "Intro".
+</para>
+</chapter>
+
+</book>

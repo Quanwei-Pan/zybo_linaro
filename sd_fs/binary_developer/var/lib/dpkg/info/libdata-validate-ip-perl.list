@@ -1,0 +1,14 @@
+/.
+/usr
+/usr/share
+/usr/share/man
+/usr/share/man/man3
+/usr/share/man/man3/Data::Validate::IP.3pm.gz
+/usr/share/perl5
+/usr/share/perl5/Data
+/usr/share/perl5/Data/Validate
+/usr/share/perl5/Data/Validate/IP.pm
+/usr/share/doc
+/usr/share/doc/libdata-validate-ip-perl
+/usr/share/doc/libdata-validate-ip-perl/copyright
+/usr/share/doc/libdata-validate-ip-perl/changelog.Debian.gz

@@ -1,0 +1,12 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/librpmbuild3
+/usr/share/doc/librpmbuild3/copyright
+/usr/lib
+/usr/lib/arm-linux-gnueabihf
+/usr/lib/arm-linux-gnueabihf/librpmbuild.so.3.2.2
+/usr/share/doc/librpmbuild3/changelog.Debian.gz
+/usr/share/doc/librpmbuild3/NEWS.Debian.gz
+/usr/lib/arm-linux-gnueabihf/librpmbuild.so.3

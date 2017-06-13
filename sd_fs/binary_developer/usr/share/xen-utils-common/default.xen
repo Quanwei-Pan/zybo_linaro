@@ -1,0 +1,9 @@
+# Configuration for Xen system
+# ----------------------------
+
+# There exists several tool stacks to configure a Xen system.
+# xl: This is the new toolstack using libxenlight/libxl (default)
+# xm: Was the old toolstack (xend) which is no longer supported!
+#
+# Attention: You need to reboot after changing this!
+TOOLSTACK=

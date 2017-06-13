@@ -1,0 +1,12 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/librpmsign1
+/usr/share/doc/librpmsign1/copyright
+/usr/lib
+/usr/lib/arm-linux-gnueabihf
+/usr/lib/arm-linux-gnueabihf/librpmsign.so.1.2.2
+/usr/share/doc/librpmsign1/changelog.Debian.gz
+/usr/share/doc/librpmsign1/NEWS.Debian.gz
+/usr/lib/arm-linux-gnueabihf/librpmsign.so.1

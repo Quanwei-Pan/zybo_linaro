@@ -1,0 +1,402 @@
+#!/usr/bin/perl -w
+
+=encoding utf8
+
+=head1 NAME
+
+xen-update-image - Update the software installed upon offline Xen images.
+
+=head1 SYNOPSIS
+
+  xen-update-image [options] imageName1 imageName2 .. imageNameN
+
+  Help Options:
+   --help      Show this scripts help information.
+   --manual    Read this scripts manual.
+   --version   Show the version number and exit.
+
+  General Options:
+   --dir       Specify the directory which contains the image(s).
+   --lvm       Specify the LVM volume group which contains the image(s).
+   --evms      Specify the EVMS container which contains the image(s).
+
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--dir>
+Specify the directory which contains the image(s).
+
+=item B<--evms>
+Specify the EVMS container which contains the image(s).
+
+=item B<--help>
+Show the script help.
+
+=item B<--lvm>
+Specify the LVM volume group which contains the image(s).
+
+=item B<--manual>
+Read the manual.
+
+=item B<--version>
+Show the version number and exit.
+
+=back
+
+
+=head1 DESCRIPTION
+
+  xen-update-image is a simple script which allows you to update
+ a Xen image of Debian which has been created with xen-create-image.
+
+  It does this by mounting the image inside a temporary directory
+ then running:
+
+      apt-get update
+
+      apt-get upgrade
+
+  NOTE If the image is already running within Xen this will cause
+ corruption otherwise it will allow you to update your image without
+ booting it.
+
+
+=head1 EXAMPLES
+
+  The following assumes there are two images which are not currently
+ running.  The images are called 'test.my.flat', and 'x11.my.flat'.
+
+  Updating both images can be accomplished by executing:
+
+     xen-update-images --dir=/home/xen test.my.flat x11.my.flat
+
+
+=head1 AUTHORS
+
+ Steve Kemp, http://www.steve.org.uk/
+ Axel Beckert, http://noone.org/abe/
+ Stéphane Jourdois
+
+
+=head1 LICENSE
+
+Copyright (c) 2005-2009 by Steve Kemp, (c) 2010 by The Xen-Tools
+Development Team. All rights reserved.
+
+This module is free software;
+you can redistribute it and/or modify it under
+the same terms as Perl itself.
+The LICENSE file contains the full text of the license.
+
+=cut
+
+
+use strict;
+use English;
+use File::Temp qw/ tempdir /;
+use File::Copy qw/ mv cp /;
+use Getopt::Long;
+use Pod::Usage;
+use Xen::Tools::Common;
+
+
+#
+#  Configuration options, initially read from the configuration file
+# but may be overridden by the command line.
+#
+#  Command line flags *always* take precedence over the configuration file.
+#
+my %CONFIG;
+
+#
+# Release number.
+#
+my $RELEASE = '4.5';
+
+
+#
+# Find xen toolstack command
+#
+$CONFIG{ 'xm' } = findXenToolstack();
+
+
+#
+#  Read configuration file if it exists.
+#
+if ( -e "/etc/xen-tools/xen-tools.conf" )
+{
+    readConfigurationFile("/etc/xen-tools/xen-tools.conf", \%CONFIG);
+}
+
+
+#
+#  Parse command line arguments, these override the values from the
+# configuration file.
+#
+parseCommandLineArguments();
+
+
+#
+#  Test that our arguments are sane.
+#
+checkArguments();
+
+
+#
+#  Abort if non-root user.
+#
+if ( $EFFECTIVE_USER_ID != 0 )
+{
+    print <<E_O_ROOT;
+
+  This script is not running with root privileges.
+
+  root privileges are required to successfully mount the disk image(s).
+
+E_O_ROOT
+
+    exit;
+}
+
+
+
+#
+#  Loop over the supplied arguments, and attempt to update each image.
+#
+while ( my $name = shift )
+{
+    if ( !xenRunning($name, \%CONFIG) )
+    {
+        updateXenImage($name);
+    }
+    else
+    {
+        print "Skipping xen guest '$name' - it appears to be running.\n";
+    }
+}
+
+
+#
+#  All done.
+#
+exit;
+
+
+
+=begin doc
+
+  Mount the primary disk image, so that we're ready to update it.
+
+=end doc
+
+=cut
+
+sub updateXenImage
+{
+    my ($name) = (@_);
+
+    #
+    #  Create a temporary directory, and prepare to mount the
+    # image there.
+    #
+    my $tmp       = tempdir( CLEANUP => 1 );
+    my $img       = '';
+    my $mount_cmd = '';
+
+    #
+    #  If we're dealing with loopback images find the main one,
+    # and mount it.
+    #
+    if ( $CONFIG{ 'dir' } )
+    {
+
+        # The loopback image.
+        $img = $CONFIG{ 'dir' } . "/domains/" . $name . "/disk.img";
+
+        if ( !-e $img )
+        {
+            print "Disk image '$img' for host '$name' not found\n";
+            return;
+        }
+
+        $mount_cmd = "mount -t auto -o loop $img $tmp";
+    }
+    elsif ( $CONFIG{ 'lvm' } )
+    {
+
+        # The LVM volume
+        $img = "/dev/" . $CONFIG{ 'lvm' } . "/$name-disk";
+
+        # make sure it exists.
+        if ( !-e $img )
+        {
+            print "Logical volume '$img' for host '$name' not found\n";
+            return;
+        }
+
+        $mount_cmd = "mount -t auto $img $tmp";
+    }
+    elsif ( $CONFIG{ 'evms' } )
+    {
+
+        # The EVMS volume -- note, unlike LVM, you don't need the
+        # $CONFIG{'evms'} to see it and mount the
+        # volume. $CONFIG{'evms'} is only used for manipulating the
+        # underlying object.  Still, I don't want to mess with the
+        # parse code and make it confusing - otherwise --evms takes an
+        # argument everywhere but here, which will confuse users.  The
+        # better solution is to make it so that --evms can take a
+        # following container, but doesn't require it.  For the
+        # moment, it is better to leave it as it is, take a container,
+        # and then ignore it.
+
+        # The best way to do it is to just read it out of the
+        # configuration file, tell the user what you got and where you
+        # got it from, and not bother the user with picking --dir or
+        # --lvm or --evms at all, but infer it from the config file's
+        # disk = parameter.  xen-delete-image might work the same way,
+        # but it could be *slightly* more dangerous in the context of
+        # deleting.
+        $img = "/dev/evms/$name-disk";
+
+        # make sure it exists.
+        if ( !-e $img )
+        {
+            print "EVMS volume '$img' for host '$name' not found\n";
+            return;
+        }
+
+        $mount_cmd = "mount -t auto $img $tmp";
+    }
+    else
+    {
+        die "Can't happen?\n";
+    }
+
+    #
+    #  Mount the image.
+    #
+    `$mount_cmd`;
+
+    #
+    #  Make sure this is a Debian image.
+    #
+    if ( ( -e $tmp . "/usr/bin/apt-get" ) &&
+         ( -x $tmp . "/usr/bin/apt-get" ) )
+    {
+        #
+        #  Copy dom0's resolv.conf to domU
+        #
+        mv("$tmp/etc/resolv.conf", "$tmp/etc/resolv.conf.old") if -f "$tmp/etc/resolv.conf";
+        cp("/etc/resolv.conf", "$tmp/etc/resolv.conf");
+
+        #
+        #  Now run the update command.
+        #
+        system("chroot $tmp /usr/bin/apt-get update");
+
+
+        #
+        #  Now upgrade
+        #
+        system(
+            "DEBIAN_FRONTEND=noninteractive  chroot $tmp /usr/bin/apt-get upgrade --yes --force-yes"
+        );
+
+        #
+        #  Restore domU's resolv.conf if needed
+        #
+        if (-f "$tmp/etc/resolv.conf") {
+            mv("$tmp/etc/resolv.conf.old", "$tmp/etc/resolv.conf");
+        } else {
+            unlink "$tmp/etc/resolv.conf";
+        }
+    }
+    else
+    {
+        print "Xen image $name is not a Debian GNU/Linux image.  Skipping\n";
+    }
+
+
+    #
+    #  Unmount
+    #
+    `umount -l $tmp`;
+    `umount $tmp 2>/dev/null >/dev/null`;
+
+}
+
+
+
+=begin doc
+
+  Parse the arguments specified upon the command line.
+
+=end doc
+
+=cut
+
+sub parseCommandLineArguments
+{
+    my $HELP    = 0;
+    my $MANUAL  = 0;
+    my $VERSION = 0;
+
+    #  Parse options.
+    #
+    GetOptions( "dir=s",  \$CONFIG{ 'dir' },
+                "lvm=s",   \$CONFIG{ 'lvm' },
+                "evms=s", \$CONFIG{ 'evms' },
+                "help",    \$HELP,
+                "manual", \$MANUAL,
+                "version", \$VERSION );
+
+    pod2usage(1) if $HELP;
+    pod2usage( -verbose => 2 ) if $MANUAL;
+
+    if ($VERSION)
+    {
+        print "xen-update-image release $RELEASE\n";
+        exit;
+
+    }
+}
+
+
+
+=begin doc
+
+  Test that the options we received from the command line, or our
+ configuration file, make sense.
+
+=end doc
+
+=cut
+
+sub checkArguments
+{
+
+    #
+    #  Make sure we got one and only one installation method.
+    #
+    my $count = 0;
+    foreach my $type (qw/dir lvm evms/)
+    {
+        $count += 1 if defined( $CONFIG{ $type } );
+    }
+
+    #
+    #  Show a decent error for when either zero or more than one options
+    # were selected.
+    #
+    if ( $count != 1 )
+    {
+        print "Please select one and only one of the installation methods:\n";
+        print " --dir\n";
+        print " --evms\n";
+        print " --lvm\n";
+        exit;
+    }
+}

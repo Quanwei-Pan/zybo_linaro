@@ -1,0 +1,9 @@
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-chmod
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-exists
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-list
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-ls
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-read
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-rm
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-watch
+12f0f5a63884e3564c1f4de9b7c9ae1f  usr/sbin/xenstore-write
+5c9881084b528e27eca9b3f8e4ed7b62  usr/share/doc/xenstore-utils/copyright

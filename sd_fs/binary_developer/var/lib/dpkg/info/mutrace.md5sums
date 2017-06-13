@@ -1,0 +1,7 @@
+731489be82243abca16222ede44f0ba0  usr/bin/matrace
+99cf55c892a29b64306a383c3f5b2a3d  usr/bin/mutrace
+673b4dad0637f152aa1e75e9b7d55912  usr/lib/mutrace/libmatrace.so
+39cee71947c58e4a0bef72e4dfe52d59  usr/lib/mutrace/libmutrace-backtrace-symbols.so
+9d0b8dec71a11eb9609526110ac45de0  usr/lib/mutrace/libmutrace.so
+186d7b092e4c5cf691d978337f7bb24e  usr/share/doc/mutrace/changelog.Debian.gz
+91c0638da7d5c75d694d8786661ac8d4  usr/share/doc/mutrace/copyright

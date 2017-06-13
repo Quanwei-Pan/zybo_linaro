@@ -1,0 +1,32 @@
+This package was debianized by Stephen Quinney <sjq@debian.org> on
+Wed, 14 Jul 2004 21:30:04 +0100
+
+It was downloaded from:
+
+    http://search.cpan.org/CPAN/authors/id/A/AU/AUSCHUTZ/
+    http://search.cpan.org/dist/IO-Stty/
+
+Upstream Authors:
+
+    Austin Schutz <auschutz@cpan.org> (Initial version and maintenance)
+    Todd Rinaldo <toddr@cpan.org> (Maintenance)
+
+COPYRIGHT
+---------
+
+    All files contained in this installation are 
+    Copyright (c) 1997 Austin Schutz <tex@habit.com> unless otherwise
+    specified. All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of either:
+
+    a) the GNU General Public License as published by the Free Software
+       Foundation; either version 1, or (at your option) any later
+       version, or
+
+    b) the "Artistic License" which comes with Perl.
+
+    On Debian GNU/Linux systems, the complete text of the GNU General
+    Public License can be found in `/usr/share/common-licenses/GPL' and
+    the Artistic Licence in `/usr/share/common-licenses/Artistic'.

@@ -1,0 +1,10 @@
+a351ee318b059373ebde539a5bae495b  usr/share/doc/libfile-slurp-perl/README
+f519a03b7f492a51572505e579d0e8ed  usr/share/doc/libfile-slurp-perl/changelog.Debian.gz
+6a553002559b874c007c8ff9fa6de1ec  usr/share/doc/libfile-slurp-perl/copyright
+4836f8512d4a0c3bcf66e0548885d2bd  usr/share/doc/libfile-slurp-perl/examples/FileSlurp_12.pm.gz
+47c2ee9fcd2b29c0ea8439d0f0e3ae4e  usr/share/doc/libfile-slurp-perl/examples/handle.t
+baf466d799d1d396283ad9200fe0b8bb  usr/share/doc/libfile-slurp-perl/examples/slurp_article.pod.gz
+d965266cf555d921aa548e57482bec44  usr/share/doc/libfile-slurp-perl/examples/slurp_bench.pl.gz
+c0b38f97d7182efb15f5c2a8c34df5bf  usr/share/doc/libfile-slurp-perl/examples/stringify.t
+9d900f99eb9dd904e32a452c35dc68bd  usr/share/man/man3/File::Slurp.3pm.gz
+5548036ef0be0a4c33698b2ece03c8a7  usr/share/perl5/File/Slurp.pm

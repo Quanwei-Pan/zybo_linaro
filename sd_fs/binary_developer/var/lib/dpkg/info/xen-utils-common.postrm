@@ -1,0 +1,61 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+purge)
+	rmdir --ignore-fail-on-non-empty /var/log/xen
+	;;
+
+remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+	;;
+
+*)
+	echo "postrm called with unknown argument \`$1'" >&2
+	exit 
+	;;
+esac
+
+dpkg-maintscript-helper mv_conffile /etc/init.d/xend /etc/init.d/xen 4.1.2-4~ -- "$@"
+
+# Automatically added by dh_ucf
+if [ "$1" = "purge" ]; then
+	for ext in .ucf-new .ucf-old .ucf-dist ""; do
+		rm -f "/etc/default/xen$ext"
+	done
+	
+	if [ -x "`which ucf 2>/dev/null`" ]; then
+		ucf --purge "/etc/default/xen"
+	fi
+	if [ -x "`which ucfr 2>/dev/null`" ]; then
+		ucfr --purge xen-utils-common "/etc/default/xen"
+	fi
+fi
+# End automatically added section
+# Automatically added by dh_installinit
+if [ "$1" = "purge" ] ; then
+	update-rc.d xendomains remove >/dev/null
+fi
+
+
+# In case this system is running systemd, we make systemd reload the unit files
+# to pick up changes.
+if [ -d /run/systemd/system ] ; then
+	systemctl --system daemon-reload >/dev/null || true
+fi
+# End automatically added section
+# Automatically added by dh_installinit
+if [ "$1" = "purge" ] ; then
+	update-rc.d xen remove >/dev/null
+fi
+
+
+# In case this system is running systemd, we make systemd reload the unit files
+# to pick up changes.
+if [ -d /run/systemd/system ] ; then
+	systemctl --system daemon-reload >/dev/null || true
+fi
+# End automatically added section
+
+
+exit 0

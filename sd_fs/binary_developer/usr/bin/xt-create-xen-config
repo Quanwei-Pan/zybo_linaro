@@ -1,0 +1,470 @@
+#!/usr/bin/perl -w
+
+=encoding utf8
+
+=head1 NAME
+
+xt-create-config - Create a Xen configuration file for a new guest
+
+=head1 SYNOPSIS
+
+  xt-create-config [options]
+
+  Filename Options:
+
+    --output     Specify the output directory to use.
+    --extension  Specify the file extension to use.
+
+
+  General Options:
+
+    --admins     Specify some administrator accounts which should be
+                created for use by the xen-shell.
+
+    --template   Specify the template file to use when creating the
+                Xen configuration file.
+
+
+  Help Options:
+
+   --help        Show this scripts help information.
+   --manual      Read this scripts manual.
+   --version     Show the version number and exit.
+
+  Debugging Options:
+
+   --verbose  Be verbose in our execution.
+
+
+  All other options from xen-create-image, such as the new IP address(es)
+ to give to the new instance, will be passed as environmental variables.
+
+
+=head1 ABOUT
+
+  This script is invoked by xen-create-image after it has created and
+ customised a new Xen guest.  It is responsible for creating the
+ configuration file which Xen will use to start the instance.
+
+  The configuration file will be created in the directory /etc/xen using
+ a template file to determine how the configuration file should be
+ created.
+
+  By default the script will use /etc/xen-tools/xm.tmpl as its input.
+
+
+=head1 INVOCATION
+
+  This script will be invoked by the xen-create-image script, rather than
+ directly.
+
+  This is because it will expect to receive the values to insert into the
+ output template in as environmental variables.
+
+  You could execute it manually via a long command line, but that is
+ error-prone and probably not useful:
+
+=for example begin
+
+   hostname=foo.my.flat ip=192.168.1.2 ... xm-create-xen-config \
+     --output=/etc/xen --template=/etc/xen-tools/xm.tmpl
+
+=for example end
+
+
+=head1 ARGUMENT PASSING
+
+  This script will be invoked with a full copy of the arguments from
+ xen-create-image in its environment, along with several command line
+ arguments.
+
+  This has several implications for customization.  If you wish to
+ setup a new variable in the output template such as "foo=bar" you
+ could update the script to include "${foo}", then invoke
+ xen-create-image with this environmental variable set.
+
+=for example begin
+
+     $ foo=bar xen-create-image --hostname=test.my.flat ...
+
+=for example end
+
+  The environment will be duplicated/inheritted by this script when
+ it is executed, and your variable will be included in the output file.
+
+  For details on the template file syntax please see the documentation
+ for the "Text::Template" perl module.   (If you have the perldoc
+ package installed you can read this with "perldoc Text::Template".)
+
+
+=head1 AUTHORS
+
+ Steve Kemp, http://www.steve.org.uk/
+ Axel Beckert, http://noone.org/abe/
+ Stéphane Jourdois
+
+
+=head1 LICENSE
+
+Copyright (c) 2005-2009 by Steve Kemp, (c) 2010-2012 by The Xen-Tools
+Development Team. All rights reserved.
+
+This module is free software;
+you can redistribute it and/or modify it under
+the same terms as Perl itself.
+The LICENSE file contains the full text of the license.
+
+=cut
+
+
+use strict;
+use English;
+use Env;
+use Getopt::Long;
+use Pod::Usage;
+use Text::Template;
+
+
+
+#
+#  Configuration values read from the command line.
+#
+#  We do not need to read any configuration file.
+#
+my %CONFIG;
+
+#
+#  Partition layout information values read from the partitions file.
+#
+my @PARTITIONS = undef;
+
+#
+#  Default options
+#
+$CONFIG{ 'template' } = '/etc/xen-tools/xm.tmpl';
+$CONFIG{ 'extension' } = '.cfg';
+
+
+#
+# Release number.
+#
+my $RELEASE = '4.5';
+
+
+
+#
+#  Parse the command line arguments.
+#
+parseCommandLineArguments();
+
+
+#
+#  Check our arguments.
+#
+checkArguments();
+
+
+#
+#  If we've been given any administrators then set them up.
+#
+if ( $ENV{ 'admins' } )
+{
+    setupAdminUsers(\%CONFIG);
+}
+
+
+#
+#  Create the Xen configuration file.
+#
+createXenConfig();
+
+
+
+#
+#  Exit cleanly - any errors which have already occurred will result
+# in "exit 1".
+#
+exit 0;
+
+
+
+=begin doc
+
+  Parse the command line arguments this script was given.
+
+=end doc
+
+=cut
+
+sub parseCommandLineArguments
+{
+    my $HELP    = 0;
+    my $MANUAL  = 0;
+    my $VERSION = 0;
+
+    #
+    #  Parse options.
+    #
+    GetOptions( "admins=s",    \$ENV{ 'admins' },
+                "output=s",    \$CONFIG{ 'output' },
+                "extension:s", \$CONFIG{ 'extension' },
+                "template=s",  \$CONFIG{ 'template' },
+                "verbose",     \$CONFIG{ 'verbose' },
+                "help",        \$HELP,
+                "manual",      \$MANUAL,
+                "version",     \$VERSION
+              );
+
+    pod2usage(1) if $HELP;
+    pod2usage( -verbose => 2 ) if $MANUAL;
+
+
+    if ($VERSION)
+    {
+        print "xt-create-xen-config release $RELEASE\n";
+        exit;
+    }
+}
+
+
+
+=begin doc
+
+  Test that the command line arguments we were given make sense.
+
+=end doc
+
+=cut
+
+sub checkArguments
+{
+
+    #
+    #  We require an output location.
+    #
+    if ( !defined( $CONFIG{ 'output' } ) )
+    {
+        print "The '--output' argument is mandatory\n";
+        exit 1;
+    }
+
+    #
+    #  The output location should be a directory which exists.
+    #
+    if ( !-d $CONFIG{ 'output' } )
+    {
+        print
+          "The output directory we've been given, $CONFIG{'output'}, doesnt exist\n";
+        print "Aborting\n";
+        exit 1;
+    }
+
+    #
+    #  Make sure that any specified template file exists.
+    #
+    if ( defined( $CONFIG{ 'template' } ) )
+    {
+        if ( !-e $CONFIG{ 'template' } )
+        {
+            print
+              "The specified template file, $CONFIG{'template'} does not exist.\n";
+            exit 1;
+        }
+    }
+    else
+    {
+        print "A template file was not specified.  Aborting\n";
+        exit 1;
+    }
+}
+
+
+=begin doc
+
+  Reconstructs the internal partitions array from the text representation exported by the xen-create-image script.
+
+=end doc
+
+=cut
+
+sub importPartitionsFromEnvironment
+{
+    @PARTITIONS = ();
+
+    return unless exists $ENV{ 'NUMPARTITIONS' };
+    for ( my $i = 1 ; $i <= $ENV{ 'NUMPARTITIONS' } ; $i++ )
+    {
+        my @parts = split( /:/, $ENV{ 'PARTITION' . $i }, 7 );
+        push( @PARTITIONS,
+              {  'name'       => $parts[0],
+                 'size'       => $parts[1],
+                 'type'       => $parts[2],
+                 'mountpoint' => $parts[3],
+                 'options'    => $parts[4],
+                 'imagetype'  => $parts[5],
+                 'image'      => $parts[6] } );
+    }
+}
+
+
+
+=begin doc
+
+  This function does the real work of creating the Xen configuration
+ file.  We modify some of the variables contained in our environment
+ and then process the template file with B<Text::Template>.
+
+=end doc
+
+=cut
+
+sub createXenConfig
+{
+    #
+    #  The output file we're going to process.
+    #
+    my $file =
+      $CONFIG{ 'output' } . '/' . $ENV{ 'hostname' } . $CONFIG{ 'extension' };
+
+    #
+    #  The template we're going to read from.
+    #
+    my $template = new Text::Template( TYPE   => 'FILE',
+                                       SOURCE => $CONFIG{ 'template' } );
+
+
+    #
+    #  The device we're using.
+    #
+    my $device = 'xvda';
+    if ( defined( $ENV{ 'ide' } ) )
+    {
+        $device = 'hda';
+    }
+    elsif ( defined( $ENV{ 'scsi' } ) )
+    {
+        $device = 'sda';
+    }
+    elsif ( defined( $ENV{ 'disk_device' } ) )
+    {
+        $device = $ENV{ 'disk_device' };
+
+        # strip /dev/, if present.
+        if ( $device =~ /^(.*)\/(.*)$/ )
+        {
+            $device = $2;
+        }
+    }
+    $ENV{ 'device' } = $device;
+
+
+    #
+    #  The memory size:  Convert Gb -> Mb.
+    #
+    if ( $ENV{ 'memory' } =~ /^(\d+)Gb?.*$/i )
+    {
+        $ENV{ 'memory' } = $1 * 1024;
+    }
+
+    #
+    #  Remove any trailing Mb.
+    #
+    $ENV{ 'memory' } =~ s/^(\d+)Mb?.*$/$1/i;
+
+    #
+    #  The maxmem size:  Convert Gb -> Mb.
+    #
+    if ( exists($ENV{ 'maxmem' }) and defined($ENV{ 'maxmem' })) {
+
+        if ($ENV{ 'maxmem' } =~ /^(\d+)Gb?.*$/i )
+        {
+            $ENV{ 'maxmem' } = $1 * 1024;
+        }
+
+    #
+    #  Remove any trailing Mb.
+    #
+        $ENV{ 'maxmem' } =~ s/^(\d+)Mb?.*$/$1/i;
+    }
+
+    #
+    # Images as presented to Xen - either loopback images, or LVM partitions.
+    #
+    if ( $ENV{ 'lvm' } )
+    {
+        $ENV{ 'image_prefix' } = "phy:$ENV{'lvm'}/$ENV{'hostname'}-";
+        $ENV{ 'image_suffix' } = '';
+        importPartitionsFromEnvironment();
+    }
+    elsif ( $ENV{ 'evms' } )
+    {
+        $ENV{ 'image_prefix' } = "phy:/dev/evms/$ENV{'hostname'}-";
+        $ENV{ 'image_suffix' } = '';
+        importPartitionsFromEnvironment();
+    }
+    elsif ( $ENV{ 'image_dev' } )
+    {
+        $ENV{ 'image_vbd' } = "phy:$ENV{'image_dev'}";
+
+        if ( $ENV{ 'swap_dev' } )
+        {
+            $ENV{ 'swap_vbd' } = "phy:$ENV{'swap_dev'}";
+        }
+        else
+        {
+            $ENV{ 'swap_vbd' } = undef;
+        }
+    }
+    else
+    {
+        $ENV{ 'image_prefix' } = "file:$ENV{'dir'}/domains/$ENV{'hostname'}/";
+        $ENV{ 'image_suffix' } = '.img';
+        importPartitionsFromEnvironment();
+    }
+
+    #
+    # The xen-tools version.
+    #
+    $ENV{ 'xen_tools_version' } = $RELEASE;
+
+
+    #
+    #  Now we should have a suitable environment.  What we want to
+    # do now is to make sure that these environmental variables are
+    # made available to our template file.
+    #
+    my %vars;
+    foreach my $key ( sort keys %ENV )
+    {
+        $vars{ $key } = $ENV{ $key };
+    }
+    $vars{ 'PARTITIONS' } = \@PARTITIONS;
+
+    #
+    #  Now output the data.
+    #
+    open( FILE, ">", $file );
+
+    #
+    #  The template file gets a complete copy of our configuration values.
+    #
+    my $result = $template->fill_in( HASH => \%vars );
+
+    #
+    #  Write the output of processing the template file, if it succeeds.
+    #
+    if ( defined $result )
+    {
+        print FILE $result;
+    }
+    else
+    {
+        print FILE "Error creating configuration file\n";
+    }
+
+    #
+    #  Close the output file.
+    #
+    close(FILE);
+
+}

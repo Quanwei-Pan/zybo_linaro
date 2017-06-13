@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+# Automatically added by dh_installdeb
+dpkg-maintscript-helper rm_conffile /etc/init.d/qemu-system-x86 2.1+dfsg-4ubuntu4~ -- "$@"
+# End automatically added section

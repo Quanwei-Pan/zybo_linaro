@@ -1,0 +1,13 @@
+3d1067ea50312e28353068ce5f8b729d  usr/bin/babeltrace
+b0e293cf418ae9bc24333abdb03ffaf2  usr/bin/babeltrace-log
+cf9bb76b0a29e322139e0602156ef152  usr/share/doc/babeltrace/API.txt.gz
+76ba15dd76a248e1dd526bca0e2125fa  usr/share/doc/babeltrace/LICENSE
+10dec886af36827b3a94df861f53e2bb  usr/share/doc/babeltrace/README
+0ebf81d6f51727b128fc969186b0adce  usr/share/doc/babeltrace/copyright
+27a35cf5eca3615ca5a5101256d5b7a8  usr/share/doc/babeltrace/development.txt
+f861658b8d23d320b5225d9513b41227  usr/share/doc/babeltrace/gpl-2.0.txt.gz
+5f50fa304d0cb0410f342cbf791f56b8  usr/share/doc/babeltrace/lttng-live.txt
+d5a594088ad15ee9e20a15bab7960d64  usr/share/doc/babeltrace/mit-license.txt
+994dad9f79b347111ab4cc99067c5d78  usr/share/doc/babeltrace/std-ext-lib.txt
+50a578af3aa1689f292433c41b4fc004  usr/share/man/man1/babeltrace-log.1.gz
+fc582cae59312268d63cca09e4a42485  usr/share/man/man1/babeltrace.1.gz

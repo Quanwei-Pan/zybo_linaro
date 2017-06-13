@@ -1,0 +1,87 @@
+#!/usr/bin/python
+
+import json
+import re
+import os
+import sys
+import subprocess
+
+
+class SXPParser(object):
+    tokenizer_rules = r""" (?P<open> \( ) | (?P<close> \) ) | (?P<whitespace> \s+ ) | [^()^\s]+ """
+    tokenizer_re = re.compile(tokenizer_rules, re.X)
+
+    @classmethod
+    def loads(cls, input):
+        data = []
+        stack = []
+        for match in self.tokenizer_re.finditer(input):
+            if match.group('open'):
+                stack.append([])
+            elif match.group('close'):
+                top = stack.pop()
+                if stack:
+                    stack[-1].append(top)
+                else:
+                    data.append(top)
+            elif match.group('whitespace'):
+                pass
+            else:
+                if stack:
+                    stack[-1].append(match.group())
+        return data
+
+
+class Data(object):
+    def __call__(self, out):
+        for domid, info in sorted(self.data.iteritems(), reverse=True):
+            out.write('{!s} {}\n'.format(domid, *info))
+
+
+class DataJSON(Data):
+    def __init__(self, p):
+        s = json.loads(p)
+        self.data = d = {}
+        for i in s:
+            domid = i['domid']
+            name = i['config']['c_info']['name']
+            d[domid] = (name, )
+
+
+class DataSXP(Data):
+    def __init__(self, p):
+        s = SXPParser()(p)
+        self.data = d = {}
+        for i in s:
+            if i and i[0] == 'domain':
+                try:
+                    data = dict(j for j in i if len(j) == 2)
+                    domid = int(data['domid'])
+                    name = data['name']
+                    if domid == 0:
+                        continue
+                    d[domid] = (name, )
+                except (KeyError, ValueError) as e:
+                    pass
+
+
+def UserdataWalker(domid_list, dirname, fnames):
+    for fname in fnames:
+        if fname.startswith("userdata"):
+            wh, domid, uuid_string, userdata_userid = fname.split(".")
+            if userdata_userid == "xl":
+                domid_list.append(domid)
+
+
+if __name__ == '__main__':
+    domid_list = []
+
+    os.path.walk("/var/lib/xen", UserdataWalker, domid_list)
+    for domid in domid_list:
+        p = subprocess.check_output(('xen', 'list', '-l', domid))
+        if p[0] == '(':
+            d = DataSXP(p)
+        else:
+            d = DataJSON(p)
+        d(sys.stdout)
+

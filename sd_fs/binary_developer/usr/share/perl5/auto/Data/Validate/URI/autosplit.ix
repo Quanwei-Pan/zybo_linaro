@@ -1,0 +1,11 @@
+# Index created by AutoSplit for blib/lib/Data/Validate/URI.pm
+#    (file acts as timestamp)
+package Data::Validate::URI;
+sub new ;
+sub is_uri ;
+sub is_http_uri ;
+sub is_https_uri ;
+sub is_web_uri ;
+sub is_tel_uri ;
+sub _split_uri ;
+1;

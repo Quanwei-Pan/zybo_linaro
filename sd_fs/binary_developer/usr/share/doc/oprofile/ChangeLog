@@ -1,0 +1,7 @@
+2011-02-25  Maynard Johnson  <maynardj@us.ibm.com>
+
+	From this date forward, ChangeLog entries will not
+	be necessary, since 'git log' can now be used to show
+	changes in the repository.
+
+See ChangeLog-2010 for earlier changelogs.

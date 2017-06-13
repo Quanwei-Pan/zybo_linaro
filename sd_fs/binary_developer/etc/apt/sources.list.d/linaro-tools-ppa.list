@@ -1,0 +1,3 @@
+# Linaro Tools PPA
+deb http://ppa.launchpad.net/linaro-maintainers/tools/ubuntu vivid main
+deb-src http://ppa.launchpad.net/linaro-maintainers/tools/ubuntu vivid main

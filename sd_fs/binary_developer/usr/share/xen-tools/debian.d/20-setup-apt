@@ -1,0 +1,114 @@
+#!/bin/sh
+#
+#  This script sets up the /etc/apt/sources.list for APT, and it disables
+# TLS where appropriate.
+#
+# Steve
+# --
+#
+
+
+prefix=$1
+
+
+#
+#  Source our common functions
+#
+if [ -e /usr/share/xen-tools/common.sh ]; then
+    . /usr/share/xen-tools/common.sh
+else
+    . ./hooks/common.sh
+fi
+
+
+#
+# Log our start
+#
+logMessage Script $0 starting
+
+
+#
+# Attempt to auto-magically detect the use of a Proxy for apt-get, and
+# replicate that setup in our new guest via apt-config dump and save
+# the setting to the proxy guess file.
+#
+if [ ${apt_proxy} ]; then
+  echo "Acquire::http::Proxy \"${apt_proxy}\";" > ${prefix}/etc/apt/apt.conf.d/01proxy
+else
+  logMessage The use of a proxy detected.
+  apt-config dump | grep -i Acquire::HTTP::Proxy > ${prefix}/etc/apt/apt.conf.d/01proxy
+fi
+
+
+#
+# Setup the sources.list file for new installations of Debian GNU/Linux.
+#
+cat <<E_O_APT > ${prefix}/etc/apt/sources.list
+#
+#  /etc/apt/sources.list
+#
+
+
+#
+# ${dist}
+#
+deb     ${mirror}     ${dist} main contrib non-free
+deb-src ${mirror}     ${dist} main contrib non-free
+
+E_O_APT
+
+
+#
+#  If the host system has security support then enable that here, too,
+#  except if we're installing Debian Unstable.
+#
+if ( test "${dist}" "!=" "sid" && test "${dist}" "!=" "unstable" && \
+     test -e /etc/apt/sources.list && \
+     grep ^deb.*security -r /etc/apt/sources.list /etc/apt/sources.list.d >/dev/null 2>/dev/null ) ; then
+
+    cat <<E_O_APT >> ${prefix}/etc/apt/sources.list
+# 
+#  Security updates
+# 
+deb     http://security.debian.org/ ${dist}/updates  main contrib non-free
+deb-src http://security.debian.org/ ${dist}/updates  main contrib non-free
+E_O_APT
+
+else
+    cat <<E_O_APT >> ${prefix}/etc/apt/sources.list
+# 
+#  Security updates - Uncomment to enable.
+# 
+# deb     http://security.debian.org/ ${dist}/updates  main contrib non-free
+# deb-src http://security.debian.org/ ${dist}/updates  main contrib non-free
+E_O_APT
+
+fi
+    
+#
+#  Now that the sources have been setup make sure the system is up to date.
+#
+chroot ${prefix} /usr/bin/apt-get update
+
+#
+# For all systems after Sarge we install libc6-xen on i386
+#
+# For Sarge we don't have that option, so we disable TLS the hard way.
+#
+if [ "${arch}" = "i386" ]; then
+    if [ "${dist}" = 'sarge' ]; then
+        logMessage "Disabling TLS"
+        mv ${prefix}/lib/tls ${prefix}/lib/tls.disabled
+        mkdir ${prefix}/lib/tls
+    else
+        logMessage "Installing xen-aware libc6"
+        installDebianPackage ${prefix} libc6-xen
+    fi
+fi
+
+
+
+#
+#  Log our finish
+#
+logMessage Script $0 finished

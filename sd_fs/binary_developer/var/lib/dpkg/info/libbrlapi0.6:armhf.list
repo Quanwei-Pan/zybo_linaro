@@ -1,0 +1,12 @@
+/.
+/lib
+/lib/arm-linux-gnueabihf
+/lib/arm-linux-gnueabihf/libbrlapi.so.0.6.2
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/libbrlapi0.6
+/usr/share/doc/libbrlapi0.6/changelog.Debian.gz
+/usr/share/doc/libbrlapi0.6/copyright
+/usr/share/doc/libbrlapi0.6/NEWS.Debian.gz
+/lib/arm-linux-gnueabihf/libbrlapi.so.0.6

@@ -1,0 +1,12 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/librpmio3
+/usr/share/doc/librpmio3/changelog.Debian.gz
+/usr/share/doc/librpmio3/NEWS.Debian.gz
+/usr/share/doc/librpmio3/copyright
+/usr/lib
+/usr/lib/arm-linux-gnueabihf
+/usr/lib/arm-linux-gnueabihf/librpmio.so.3.2.2
+/usr/lib/arm-linux-gnueabihf/librpmio.so.3

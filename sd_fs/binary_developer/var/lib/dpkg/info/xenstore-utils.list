@@ -1,0 +1,16 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/xenstore-utils
+/usr/share/doc/xenstore-utils/copyright
+/usr/sbin
+/usr/sbin/xenstore-write
+/usr/sbin/xenstore-rm
+/usr/sbin/xenstore-read
+/usr/sbin/xenstore-list
+/usr/sbin/xenstore-ls
+/usr/sbin/xenstore-exists
+/usr/sbin/xenstore-watch
+/usr/sbin/xenstore-chmod
+/usr/share/doc/xenstore-utils/changelog.Debian.gz

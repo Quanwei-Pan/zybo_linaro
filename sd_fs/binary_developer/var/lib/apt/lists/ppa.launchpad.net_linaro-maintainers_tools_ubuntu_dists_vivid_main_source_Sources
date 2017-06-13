@@ -1,0 +1,83 @@
+Package: linaro-image-tools
+Binary: linaro-image-tools, python-linaro-image-tools
+Version: 2014.12-0linaro1
+Section: devel
+Maintainer: Linaro Packagers <linaro-pkg@lists.launchpad.net>
+Build-Depends: apt-utils, command-not-found, debhelper (>= 7.0.50~), dosfstools, python, python-all, python-apt, python-argparse, python-dbus, python-debian (>= 0.1.16ubuntu1~), python-distutils-extra, python-parted, python-support, python-testtools (>= 0.9.12), python-yaml, u-boot-tools | uboot-mkimage
+Architecture: all
+Standards-Version: 3.9.3
+Format: 3.0 (quilt)
+Directory: pool/main/l/linaro-image-tools
+Files:
+ a59b2a949abe5a3e40b5866b4bfa288b 230964 linaro-image-tools_2014.12.orig.tar.gz
+ 130859c2863f82fba6bba396a1ca69ed 6260 linaro-image-tools_2014.12-0linaro1.debian.tar.xz
+ 581d13303ed6e84f86c092ec61279a2a 1693 linaro-image-tools_2014.12-0linaro1.dsc
+Checksums-Sha1:
+ ce47545fcaf2c053d8693116fe8f0fbc5d291217 230964 linaro-image-tools_2014.12.orig.tar.gz
+ 2aa713b5b6d15e26bd53b0c5a05890f58faf3c02 6260 linaro-image-tools_2014.12-0linaro1.debian.tar.xz
+ 27b05a986ab5c8aa3f514e26e8a4b6caa67e50bc 1693 linaro-image-tools_2014.12-0linaro1.dsc
+Checksums-Sha256:
+ 801091f888475d4404d38f827362f89f0d6326dbad18da8924c89c7ee9f7cf17 230964 linaro-image-tools_2014.12.orig.tar.gz
+ 319f4b183e07b3a9a624282edde3f1263da780edb34fa384a562be5cab985e20 6260 linaro-image-tools_2014.12-0linaro1.debian.tar.xz
+ 9d4305d3ad93850408b9d04ecbfb8a2d1060479e39ae4da2cf766497ab781cb0 1693 linaro-image-tools_2014.12-0linaro1.dsc
+Python-Version: >= 2.5
+Package-List: linaro-image-tools deb devel optional arch=all
+ python-linaro-image-tools deb python optional arch=all
+Vcs-Bzr: lp:ubuntu/linaro-image-tools
+
+Package: python-jenkins
+Binary: python-jenkins
+Version: 0.4.2-0.1
+Section: python
+Maintainer: James Page <james.page@ubuntu.com>
+Build-Depends: debhelper (>= 9), python-all (>= 2.6.6-3), python-pbr (>= 0.7), python-setuptools, python-six, python-sphinx (>= 1.0.7+dfsg)
+Architecture: all
+Standards-Version: 3.9.5
+Format: 3.0 (quilt)
+Directory: pool/main/p/python-jenkins
+Files:
+ a03d7585b8dbf90b20b4c11874f192c3 21880 python-jenkins_0.4.2.orig.tar.gz
+ 8927340e19ecb6242a825b08f0e3d49b 2825 python-jenkins_0.4.2-0.1.debian.tar.gz
+ 11f2df36ca4af4d0de9dc03b9649c38b 1510 python-jenkins_0.4.2-0.1.dsc
+Checksums-Sha1:
+ 006fd3b14871a84a78ac6afd52a5463ff0e85d2d 21880 python-jenkins_0.4.2.orig.tar.gz
+ 4423249da1cb77f5ac7c0cf92a5c8e8af3832cb7 2825 python-jenkins_0.4.2-0.1.debian.tar.gz
+ 11b99f21898c2ec04aae33f7d400f915f61af2b5 1510 python-jenkins_0.4.2-0.1.dsc
+Checksums-Sha256:
+ 1707f100c4b24dba7fb7ff2d9e33aa7c16a6b1b4147f4ddc890284692872fdca 21880 python-jenkins_0.4.2.orig.tar.gz
+ 33fb8bb5fdb19c6b6f31e67cdb5b5587361a141889e055a2e4152e78f8acb91b 2825 python-jenkins_0.4.2-0.1.debian.tar.gz
+ 978baa1395d21563882aaff303c01855582b1caf5d7f9fe040f9f82f57a5f75e 1510 python-jenkins_0.4.2-0.1.dsc
+Homepage: http://launchpad.net/python-jenkins
+Uploaders: Paul Belanger <paul.belanger@polybeacon.com>
+Package-List: python-jenkins deb python optional
+Vcs-Git: git://github.com/pabelanger/python-jenkins.git
+Vcs-Browser: https://github.com/pabelanger/python-jenkins.git
+
+Package: jenkins-job-builder
+Binary: jenkins-job-builder
+Version: 1.2.0-0.1
+Section: python
+Maintainer: Paul Belanger <paul.belanger@polybeacon.com>
+Build-Depends: debhelper (>= 9), python-all (>= 2.6.6-3), python-jenkins, python-pbr (>= 0.7), python-setuptools, python-six, python-sphinx (>= 1.0.7+dfsg), python-sphinxcontrib-programoutput, python-yaml
+Architecture: all
+Standards-Version: 3.9.6
+Format: 3.0 (quilt)
+Directory: pool/main/j/jenkins-job-builder
+Files:
+ 79e44ef0d3fffc19f415d8c0caac6b7b 260402 jenkins-job-builder_1.2.0.orig.tar.gz
+ 02d60cebbddaefe104a75676e10aa573 8300 jenkins-job-builder_1.2.0-0.1.debian.tar.gz
+ e5f58f3fca010bbfe2c8042b175de889 1641 jenkins-job-builder_1.2.0-0.1.dsc
+Checksums-Sha1:
+ d5b24fc66e1e798609d86cd6a50e48f298931e9c 260402 jenkins-job-builder_1.2.0.orig.tar.gz
+ 8216ec9fbec6a92e26b5e73a1d6412ec0d0fe759 8300 jenkins-job-builder_1.2.0-0.1.debian.tar.gz
+ f7c2157191deeb383de011cc4844e979d821b89f 1641 jenkins-job-builder_1.2.0-0.1.dsc
+Checksums-Sha256:
+ 77ac34ff3679c4cd6e1b205955240a479a95e43433eef5caacb7d308166cdd26 260402 jenkins-job-builder_1.2.0.orig.tar.gz
+ 9b86e60d8139b0a448937676fc61614a6c50244af1dc70ba0272e2a92b060799 8300 jenkins-job-builder_1.2.0-0.1.debian.tar.gz
+ 0e8e4681a26cce3bf906f04ed755e3c8f2c86ad603dc970d6d6062bedf6b4420 1641 jenkins-job-builder_1.2.0-0.1.dsc
+Homepage: http://ci.openstack.org/jenkins-job-builder
+Uploaders: Fathi Boudra <fabo@debian.org>
+Package-List: jenkins-job-builder deb python optional
+Vcs-Git: git://github.com/pabelanger/jenkins-job-builder-deb.git
+Vcs-Browser: https://github.com/pabelanger/jenkins-job-builder-deb
+

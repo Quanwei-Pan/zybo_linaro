@@ -1,0 +1,5 @@
+535d770eb0f06521be7d1d3607f7950e  lib/arm-linux-gnueabihf/libaio.so.1.0.1
+8fb1f62db3b723660468f70260efb454  usr/share/doc/libaio1/TODO
+d56b832a7f4b2433bf0e43aca8b14398  usr/share/doc/libaio1/changelog.Debian.gz
+eb849ef6e8e2b4dec1081fb126742b10  usr/share/doc/libaio1/copyright
+a051e6b9464637c4dbf0a5fa55ab781f  usr/share/lintian/overrides/libaio1

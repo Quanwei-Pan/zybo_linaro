@@ -1,0 +1,12 @@
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/powerdebug
+/usr/share/doc/powerdebug/copyright
+/usr/share/doc/powerdebug/changelog.Debian.gz
+/usr/share/man
+/usr/share/man/man8
+/usr/share/man/man8/powerdebug.8.gz
+/usr/sbin
+/usr/sbin/powerdebug

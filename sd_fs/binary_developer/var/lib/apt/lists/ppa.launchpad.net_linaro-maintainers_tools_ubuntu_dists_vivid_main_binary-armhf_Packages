@@ -1,0 +1,66 @@
+Package: linaro-image-tools
+Priority: optional
+Section: devel
+Installed-Size: 84
+Maintainer: Linaro Packagers <linaro-pkg@lists.launchpad.net>
+Architecture: all
+Version: 2014.12-0linaro1
+Recommends: btrfs-tools, command-not-found, qemu-user-static | qemu-kvm-extras-static, udisks
+Depends: apt-utils, dosfstools, gdisk, parted, python (>= 2.5), python-argparse, python-dbus, python-debian (>= 0.1.16ubuntu1~), python-linaro-image-tools (>= 2014.12-0linaro1), python-parted, python-yaml, sudo, u-boot-tools | uboot-mkimage
+Filename: pool/main/l/linaro-image-tools/linaro-image-tools_2014.12-0linaro1_all.deb
+Size: 21122
+MD5sum: 2acc1596dd685b4c8b8b70ff49e10a64
+SHA1: 91eadcc277cac3f9547a9611985c6f9197ff4290
+SHA256: d5bf876b3ceac6009a9834d7e2b334dddd687e2090f3f0250e7001e2b410e5fd
+Description: collection of tools to work with Linaro images
+Description-md5: 72dcd8474ae77a9d84c1fe3c324f6b65
+
+Package: python-linaro-image-tools
+Source: linaro-image-tools
+Priority: optional
+Section: python
+Installed-Size: 906
+Maintainer: Linaro Packagers <linaro-pkg@lists.launchpad.net>
+Architecture: all
+Version: 2014.12-0linaro1
+Depends: python-apt, python (>= 2.5), python-support (>= 0.90.0)
+Filename: pool/main/l/linaro-image-tools/python-linaro-image-tools_2014.12-0linaro1_all.deb
+Size: 154298
+MD5sum: d6f188d13a2f7c821902326d31ba715c
+SHA1: b55c660488513e154e05e1f4bdb7124c6b638db3
+SHA256: 6468b64fb9db9c4e001664973d38472b2c5ecbd3ee05bc69eb960433b141dc4e
+Description: Python library for the manipulation of Linaro bootable media
+Description-md5: eeabfc3ce54fbf3357eaff5aff9f6d74
+
+Package: python-jenkins
+Priority: optional
+Section: python
+Installed-Size: 81
+Maintainer: James Page <james.page@ubuntu.com>
+Architecture: all
+Version: 0.4.2-0.1
+Depends: python (>= 2.7), python (<< 2.8), python:any (>= 2.7.1-0ubuntu2), python-six, python-pbr
+Filename: pool/main/p/python-jenkins/python-jenkins_0.4.2-0.1_all.deb
+Size: 11060
+MD5sum: e9136d7b04247bf520ff1e3329d74a31
+SHA1: 3e7d67d7dd5a98d281a5c942dbc889a91df2e84a
+SHA256: 8ddfa8c7cbf1589db5f75174fcb2a1f851d2a980fabce07af331822fd4da2e52
+Description: Python bindings for the Jenkins Remote API
+Description-md5: 13738a0a9aa6ce82ea934542ec3447fa
+
+Package: jenkins-job-builder
+Priority: optional
+Section: python
+Installed-Size: 1558
+Maintainer: Paul Belanger <paul.belanger@polybeacon.com>
+Architecture: all
+Version: 1.2.0-0.1
+Depends: libjs-jquery, libjs-underscore, python-jenkins, python-pkg-resources, python-yaml, python:any (>= 2.7.1-0ubuntu2), python-six, python-pbr, libjs-sphinxdoc (>= 1.0)
+Filename: pool/main/j/jenkins-job-builder/jenkins-job-builder_1.2.0-0.1_all.deb
+Size: 274542
+MD5sum: 1a9d681a9372f0fd0401e4aa0454bf39
+SHA1: 425664ac6e11aa07083db62a78491f1ed72abec9
+SHA256: e210c6ba6f9ad622d72e96193cdc255e942c417fa9029074c57e2155504bc145
+Description: Configure Jenkins using YAML files
+Description-md5: 04039e973d7bcefce98e8f6518f54e4c
+

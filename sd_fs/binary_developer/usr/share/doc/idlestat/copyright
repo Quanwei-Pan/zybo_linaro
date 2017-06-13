@@ -1,0 +1,23 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: idlestat
+Upstream-Contact: Colin King <colin.king@canonical.com>
+Source: git://git.linaro.org/power/idlestat.git
+
+Files: *
+Copyright: 2014, Linaro Limited.
+License: GPL-2
+ On Debian systems, the complete text of the GNU General Public
+ License can be found in `/usr/share/common-licenses/GPL-2'.
+
+Files: trace.h: 
+Copyright: 2014, Zoran Markovic <zoran.markovic@linaro.org>
+License: GPL-2
+ On Debian systems, the complete text of the GNU General Public
+ License can be found in `/usr/share/common-licenses/GPL-2'.
+
+Files: debian/*
+Copyright: 2012-2014, Canonical Ltd
+License: GPL-2+
+ On Debian systems, the complete text of the GNU General Public
+ License can be found in `/usr/share/common-licenses/GPL-2'.
+

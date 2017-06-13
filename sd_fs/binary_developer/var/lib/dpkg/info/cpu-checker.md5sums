@@ -1,0 +1,6 @@
+8afff76ecaf4c0915b92e784d3b44d79  usr/sbin/check-bios-nx
+9e7757197b0015fcc2d0b714841c83f1  usr/sbin/kvm-ok
+3c402d30ed9a9f70ec5ff63c55632240  usr/share/doc/cpu-checker/changelog.Debian.gz
+ff07c2f3d857f47fe5c45c97b80fa510  usr/share/doc/cpu-checker/copyright
+3bc5647443ef79dbb6f04a028d87dff1  usr/share/man/man1/check-bios-nx.1.gz
+f2ccf9f6770d11fe95b87695769e039c  usr/share/man/man1/kvm-ok.1.gz

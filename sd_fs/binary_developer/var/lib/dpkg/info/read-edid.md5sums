@@ -1,0 +1,8 @@
+e4ec9ce38253541ce84331c2c49ccb69  usr/bin/get-edid
+35d8ee1b3d8207565621e5bc00514a92  usr/bin/parse-edid
+b65d66be9c03fb107f0c2a1acd7b297d  usr/share/doc/read-edid/AUTHORS
+9ab123fe63640e27c20444dc921a240d  usr/share/doc/read-edid/ChangeLog
+cbbefb5649fdf981194a37619304599a  usr/share/doc/read-edid/README
+3c4adb1fdd0acd9a926092430dcce0ea  usr/share/doc/read-edid/changelog.Debian.gz
+8b1db3282143670383ff8e9ab09cf33a  usr/share/doc/read-edid/copyright
+ac7d05c51f19e6ddf41c1d0c8adc7d7c  usr/share/man/man1/get-edid.1.gz

@@ -1,0 +1,11 @@
+TARGETS = alsa-utils resolvconf xendomains urandom xen sendsigs rsyslog umountnfs.sh hwclock.sh networking umountfs umountroot halt reboot
+xen: xendomains
+sendsigs: xendomains xen alsa-utils
+rsyslog: xendomains xen sendsigs
+umountnfs.sh: xendomains xen rsyslog sendsigs alsa-utils
+hwclock.sh: rsyslog
+networking: umountnfs.sh
+umountfs: xendomains xen hwclock.sh networking umountnfs.sh alsa-utils resolvconf urandom
+umountroot: umountfs
+halt: umountroot
+reboot: umountroot
